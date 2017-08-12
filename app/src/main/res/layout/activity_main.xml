@@ -21,6 +21,7 @@
             android:layout_height="wrap_content"
             android:text="搜索"
             android:id="@+id/searchBtn"
+            android:background="@drawable/btn_background"
             android:layout_alignParentRight="true" />
     </RelativeLayout>
 
@@ -55,20 +56,21 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
 
-                android:text="到这去"
+                android:text="等待百度地图授权..."
                 android:layout_gravity="right"
-                android:id="@+id/goButton"
+                android:id="@+id/go_button"
                 android:layout_alignParentBottom="true"
                 android:layout_alignParentLeft="true"
                 android:layout_alignParentStart="true"
-                android:background="#54a8b9" />
+                android:background="@drawable/btn_background"
+                android:enabled="false" />
 
             <TextView
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:text="New Text"
                 android:id="@+id/addrName"
-                android:layout_above="@+id/goButton"
+                android:layout_above="@+id/go_button"
                 android:layout_alignParentLeft="true"
                 android:layout_alignParentStart="true" />
         </LinearLayout>
@@ -79,7 +81,7 @@
     <TextView
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text="当前位置：（111,111）"
+        android:text="暂无定位数据"
         android:id="@+id/location_text"
         android:layout_below="@+id/search_layout"
         android:layout_alignParentLeft="true"

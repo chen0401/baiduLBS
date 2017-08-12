@@ -65,40 +65,44 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-public class MainActivity extends Activity implements OnGetGeoCoderResultListener{
+/**
+ * create by chentravelling@163.com
+ */
+public class MainActivity extends Activity implements OnGetGeoCoderResultListener {
     /**
      * UI相关
      */
-    private RelativeLayout popuInfoView = null;     //点击marker后弹出的窗口
-    private AutoCompleteTextView autoCompleteTextView = null;
-    private ArrayAdapter<String> adapter = null;
-    private Button searchBtn = null;
-    private TextView locationText = null;
+    private RelativeLayout popuInfoView = null;                 //点击marker后弹出的窗口
+    private AutoCompleteTextView autoCompleteTextView = null;   //输入搜索关键字的view
+    private ArrayAdapter<String> adapter = null;                //适配器,展示搜索结果
+    private Button searchBtn = null;                            //搜索按钮
+    private TextView locationText = null;                       //显示的当前地址的view
+    private Button goButton = null;                             //到这去 按钮
     /**
      * 全局变量
      */
     private static final String APP_FOLDER_NAME = "lbstest";    //app在SD卡中的目录名
     private String mSDCardPath = null;
     public static final String ROUTE_PLAN_NODE = "routePlanNode";
-    private final String TTS_API_KEY = "9825418";           //语音播报api_key
+    private final String TTS_API_KEY = "9825418";               //语音播报api_key
     /**
      * 百度地图相关
      */
-    private LocationClient locationClient;  //定位SDK核心类
-    private MapView mapView;                //百度地图控件
-    private BaiduMap baiduMap;              //百度地图对象
-    boolean isFirstLoc = true;              //是否首次定位
-    private LatLng myLocation;              //当前定位信息
-    private LatLng clickLocation;           //长按地址信息
-    private BDLocation currentLocation;     //当前定位信息[最好使用这个]
+    private LocationClient locationClient;                      //定位SDK核心类
+    private MapView mapView;                                    //百度地图控件
+    private BaiduMap baiduMap;                                  //百度地图对象
+    boolean isFirstLoc = true;                                  //是否首次定位
+    private LatLng myLocation;                                  //当前定位信息
+    private LatLng clickLocation;                               //长按地址信息
+    private BDLocation currentLocation;                         //当前定位信息[最好使用这个]
 
-    private PoiSearch poiSearch;            //POI搜索模块
-    private SuggestionSearch suggestionSearch = null;//模糊搜索模块
-    GeoCoder mSearch = null;                //地理编码模块
-    private MySensorEventListener mySensorEventListener;//传感器
-    private float lastX = 0.0f;             //传感器返回的方向
-    private boolean initSuccess = false;
-    public static List<Activity> activityList = new LinkedList<Activity>();
+    private PoiSearch poiSearch;                                //POI搜索模块
+    private SuggestionSearch suggestionSearch = null;           //模糊搜索模块
+    GeoCoder mSearch = null;                                    //地理编码模块
+    private MySensorEventListener mySensorEventListener;        //传感器
+    private float lastX = 0.0f;                                 //传感器返回的方向
+    private boolean initSuccess = false;                        //初始化标志位
+    public static List<Activity> activityList = new LinkedList<>();
 
 
     @Override
@@ -106,34 +110,22 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         super.onCreate(savedInstanceState);
         SDKInitializer.initialize(getApplicationContext());
         setContentView(R.layout.activity_main);
-        initView();     //界面初始化
-        poiSearch = PoiSearch.newInstance();
-        poiSearch.setOnGetPoiSearchResultListener(new PoiSearchListener());
-        suggestionSearch = SuggestionSearch.newInstance();
-        suggestionSearch.setOnGetSuggestionResultListener(new SuggestionResultListener());
-
-        autoCompleteTextView.addTextChangedListener(new TextViewWatcher());
-        //方向传感器监听
-        mySensorEventListener = new MySensorEventListener(this);
-        mySensorEventListener.setOnOrientationListener(new MySensorEventListener.OnOrientationListener() {
-            @Override
-            public void onOrientationChanged(float x) {
-                //将获取的x轴方向赋值给全局变量
-                lastX = x;
-                Log.e("sensor",x+"");
-            }
-        });
-        mySensorEventListener.start();
+        //界面初始化：控件初始化
+        initView();
+        //初始化百度地图相关
+        initBaiduMap();
+        //初始化传感器
+        initSensor();
     }
-    private class TextViewWatcher implements TextWatcher
-    {
+
+    private class TextViewWatcher implements TextWatcher {
         @Override
         public void beforeTextChanged(CharSequence s, int start, int count, int after) {
         }
+
         @Override
         public void onTextChanged(CharSequence s, int start, int before, int count) {
-            if(s.length()<1)
-            {
+            if (s.length() < 1) {
                 return;
             }
             suggestionSearch
@@ -141,54 +133,117 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                             .city(currentLocation.getCity())
                             .keyword(s.toString()));
         }
+
         @Override
         public void afterTextChanged(Editable s) {
 
         }
     }
+
     /**
-     *界面初始化
-     **/
-    private void initView()
-    {
-        locationText = (TextView)findViewById(R.id.location_text);
-        autoCompleteTextView = (AutoCompleteTextView)findViewById(R.id.autoCompleteTextView);
-        searchBtn = (Button)findViewById(R.id.searchBtn);
-        searchBtn.setOnClickListener(new OnClickListener());
-        mapView = (MapView) findViewById(R.id.bmapView);
+     * 初始化传感器
+     */
+    private void initSensor() {
+        //方向传感器监听
+        mySensorEventListener = new MySensorEventListener(this);
+        //增加监听：orientation listener
+        mySensorEventListener.setOnOrientationListener(new MySensorEventListener.OnOrientationListener() {
+            @Override
+            public void onOrientationChanged(float x) {
+                //将获取的x轴方向赋值给全局变量
+                lastX = x;
+            }
+        });
+        //开启监听
+        mySensorEventListener.start();
+    }
+
+    /**
+     * 初始化百度地图相关模块
+     */
+    private void initBaiduMap() {
+        /*****************************************************
+         * 地图模块
+         *****************************************************/
+        //百度地图map
         baiduMap = mapView.getMap();
-        baiduMap.setMyLocationEnabled(true);
+        //增加监听:Marker click listener
         baiduMap.setOnMarkerClickListener(new OnMarkerClickListener());
+        /*****************************************************
+         * 定位模块
+         *****************************************************/
         // 开启定位图层
         baiduMap.setMyLocationEnabled(true);
+        //定位服务客户端
         locationClient = new LocationClient(this);
         //注册监听
         locationClient.registerLocationListener(new MyLocationListenner());
         //定位配置信息
         LocationClientOption option = new LocationClientOption();
-        option.setOpenGps(true);        // 打开gps
-        option.setCoorType("bd09ll");   // 设置坐标类型
-        option.setScanSpan(1000);       //定位请求时间间隔
-
+        // 打开gps
+        option.setOpenGps(true);
+        // 设置坐标类型,国测局经纬度坐标系:gcj02;  百度墨卡托坐标系:bd09;  百度经纬度坐标系:bd09ll
+        option.setCoorType("bd09ll");
+        //定位请求时间间隔 1秒
+        option.setScanSpan(1000);
+        //设备方向
         option.setNeedDeviceDirect(true);
+        //是否需要地址信息
         option.setIsNeedAddress(true);
+        //是否需要地址语义化信息
         option.setIsNeedLocationDescribe(true);
         locationClient.setLocOption(option);
         //开启定位
         locationClient.start();
+        //定位模式
         baiduMap
                 .setMyLocationConfigeration(new MyLocationConfiguration(
                         MyLocationConfiguration.LocationMode.NORMAL, true, null));
-        /* locationBtn = (Button)findViewById(R.id.locatio_btn);
-        locationBtn.setOnClickListener(new OnClickListener());*/
+        //增加监听：长按地图
         baiduMap.setOnMapLongClickListener(new OnMapLongClickListener());
+        //增加监听：map click listener ,主要监听poi点击
         baiduMap.setOnMapClickListener(new OnMapClickListener());
+        /******************************************************
+         * 地理编码模块
+         ******************************************************/
+        //地理编码模块
         mSearch = GeoCoder.newInstance();
+        //增加监听：地理编码查询结果
         mSearch.setOnGetGeoCodeResultListener(this);
-
+        /******************************************************
+         * POI搜索模块
+         ******************************************************/
+        //POI搜索模块
+        poiSearch = PoiSearch.newInstance();
+        //增加监听：POI搜索结果
+        poiSearch.setOnGetPoiSearchResultListener(new PoiSearchListener());
+        //模糊搜索
+        suggestionSearch = SuggestionSearch.newInstance();
+        //增加监听：模糊搜索查询结果
+        suggestionSearch.setOnGetSuggestionResultListener(new SuggestionResultListener());
     }
-    private class PoiSearchListener implements OnGetPoiSearchResultListener
-    {
+
+    /**
+     * 界面初始化
+     **/
+    private void initView() {
+        //显示位置的text
+        locationText = (TextView) findViewById(R.id.location_text);
+        //关键字输入view
+        autoCompleteTextView = (AutoCompleteTextView) findViewById(R.id.autoCompleteTextView);
+        //增加监听：text change listener
+        autoCompleteTextView.addTextChangedListener(new TextViewWatcher());
+        //搜索btn
+        searchBtn = (Button) findViewById(R.id.searchBtn);
+        //增加监听
+        searchBtn.setOnClickListener(new OnClickListener());
+        //百度地图view
+        mapView = (MapView) findViewById(R.id.bmapView);
+        //到这去 按钮
+        goButton = (Button) findViewById(R.id.go_button);
+    }
+
+    private class PoiSearchListener implements OnGetPoiSearchResultListener {
         @Override
         public void onGetPoiResult(PoiResult poiResult) {
             if (poiResult == null
@@ -208,9 +263,9 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                 //MyPoiOverlayextends PoiOverlay;PoiOverlay extends OverlayManager
                 //看了这三个class之间的关系后瞬间明白咱自己也可以写overlay，重写OverlayManager中的一些方法就可以了
                 //比如重写了点击事件，这个方法真的太好，对不同类型的图层可能有不同的点击事件，百度地图3.4.0之后就支持设置多个监听对象了，只是本人还没把这个方法彻底掌握...
-                overlay.setData(poiResult);//图层数据
-                overlay.addToMap();//添加到地图中(添加的都是marker)
-                overlay.zoomToSpan();//保证能显示所有marker
+                overlay.setData(poiResult); //图层数据
+                overlay.addToMap();         //添加到地图中(添加的都是marker)
+                overlay.zoomToSpan();       //保证能显示所有marker
                 return;
             }
             if (poiResult.error == SearchResult.ERRORNO.AMBIGUOUS_KEYWORD) {
@@ -226,6 +281,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                         .show();
             }
         }
+
         @Override
         public void onGetPoiDetailResult(PoiDetailResult poiDetailResult) {
 
@@ -250,47 +306,45 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                 );
                 //将该POI点设置为地图中心
                 baiduMap.setMapStatus(MapStatusUpdateFactory.newLatLng(poiDetailResult.location));
-                Toast.makeText(MainActivity.this,"hhah",Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "hhah", Toast.LENGTH_LONG).show();
                 return;
             }
             if (poiDetailResult.error == SearchResult.ERRORNO.AMBIGUOUS_KEYWORD) {
             }
         }
+
         @Override
         public void onGetPoiIndoorResult(PoiIndoorResult poiIndoorResult) {
 
         }
     }
-    private class OnMarkerClickListener implements BaiduMap.OnMarkerClickListener
-    {
+
+    private class OnMarkerClickListener implements BaiduMap.OnMarkerClickListener {
         @Override
         public boolean onMarkerClick(Marker marker) {
-            Toast.makeText(MainActivity.this,"herereee",Toast.LENGTH_LONG).show();
             BDLocation bdLocation = new BDLocation();
             bdLocation.setAddrStr(marker.getTitle());
             bdLocation.setLatitude(marker.getPosition().latitude);
             bdLocation.setLongitude(marker.getPosition().longitude);
-            poputInfo(bdLocation,marker.getTitle());
+            //弹出信息
+            poputInfo(bdLocation, marker.getTitle());
             return false;
         }
     }
-    private class SuggestionResultListener implements OnGetSuggestionResultListener
-    {
+
+    private class SuggestionResultListener implements OnGetSuggestionResultListener {
         @Override
         public void onGetSuggestionResult(final SuggestionResult suggestionResult) {
-            if(suggestionResult==null||suggestionResult.getAllSuggestions() == null)
-            {
+            if (suggestionResult == null || suggestionResult.getAllSuggestions() == null) {
                 return;
             }
             List<String> suggest = new ArrayList<>();
-            for (SuggestionResult.SuggestionInfo suggestionInfo: suggestionResult.getAllSuggestions())
-            {
-                if(suggestionInfo.key!=null)
-                {
+            for (SuggestionResult.SuggestionInfo suggestionInfo : suggestionResult.getAllSuggestions()) {
+                if (suggestionInfo.key != null) {
                     suggest.add(suggestionInfo.key);
                 }
             }
-            adapter = new ArrayAdapter<String>(MainActivity.this,android.R.layout.simple_dropdown_item_1line,suggest);
+            adapter = new ArrayAdapter<String>(MainActivity.this, android.R.layout.simple_dropdown_item_1line, suggest);
             autoCompleteTextView.setAdapter(adapter);
             autoCompleteTextView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                 @Override
@@ -302,10 +356,11 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             adapter.notifyDataSetChanged();
         }
     }
-    /*点击POI点
-    * */
-    private class  OnMapClickListener implements BaiduMap.OnMapClickListener
-    {
+
+    /**
+     * 重写map poi click:监听地图中已标记的POI点击事件
+     */
+    private class OnMapClickListener implements BaiduMap.OnMapClickListener {
         @Override
         public void onMapClick(LatLng latLng) {
 
@@ -319,39 +374,44 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             //根据POI点坐标反向地理编码
             reverseSearch(POIPosition);
             //添加图层显示POI点
-                baiduMap.clear();
-                baiduMap.addOverlay(
-                        new MarkerOptions()
-                                .position(POIPosition)                                     //坐标位置
-                                .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_gcoding))
-                                .title(POIName)                                         //标题
+            baiduMap.clear();
+            baiduMap.addOverlay(
+                    new MarkerOptions()
+                            .position(POIPosition)                                     //坐标位置
+                            .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_gcoding))
+                            .title(POIName)                                         //标题
 
-                );
-                //将该POI点设置为地图中心
-                baiduMap.setMapStatus(MapStatusUpdateFactory.newLatLng(POIPosition));
+            );
+            //将该POI点设置为地图中心
+            baiduMap.setMapStatus(MapStatusUpdateFactory.newLatLng(POIPosition));
             return true;
         }
     }
-    /*长按地图选点*/
-    private class OnMapLongClickListener implements BaiduMap.OnMapLongClickListener
-    {
+
+    /**
+     * 重写map long click:长按地图选点,进行反地理编码,查询该点信息
+     */
+    private class OnMapLongClickListener implements BaiduMap.OnMapLongClickListener {
         @Override
         public void onMapLongClick(LatLng latLng) {
             clickLocation = latLng;
             reverseSearch(latLng);
         }
     }
+
     /**
      * 反向搜索
+     *
      * @param latLng
      */
-    public void reverseSearch(LatLng latLng)
-    {
+    public void reverseSearch(LatLng latLng) {
         mSearch.reverseGeoCode(new ReverseGeoCodeOption()
                 .location(latLng));
     }
+
     /**
-     * 正向地理编码和反向地理编码
+     * 监听正向地理编码和反向地理编码搜索结果
+     *
      * @param result
      */
     @Override
@@ -372,6 +432,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         Toast.makeText(MainActivity.this, strInfo, Toast.LENGTH_LONG).show();
 
     }
+
     @Override
     public void onGetReverseGeoCodeResult(ReverseGeoCodeResult result) {
         if (result == null || result.error != SearchResult.ERRORNO.NO_ERROR) {
@@ -389,7 +450,6 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         );
         baiduMap.setMapStatus(MapStatusUpdateFactory.newLatLng(result
                 .getLocation()));
-        //Toast.makeText(MainActivity.this, result.getAddress(),Toast.LENGTH_LONG).show();
         /**
          * 弹出InfoWindow，显示信息
          */
@@ -398,34 +458,32 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         bdLocation.setLongitude(result.getLocation().longitude);
         bdLocation.setAddrStr(result.getAddress());
         String add = bdLocation.getAddrStr();
-        poputInfo(bdLocation,result.getAddress());
+        poputInfo(bdLocation, result.getAddress());
     }
+
     /**
      * 弹出InfoWindow，显示信息
      */
-    public void poputInfo(final BDLocation bdLocation,final String address)
-    {
+    public void poputInfo(final BDLocation bdLocation, final String address) {
         /**
          * 获取弹窗控件
          */
         popuInfoView = (RelativeLayout) findViewById(R.id.id_marker_info);
-        TextView addrNameView = (TextView)findViewById(R.id.addrName);
+        TextView addrNameView = (TextView) findViewById(R.id.addrName);
         double la = bdLocation.getLatitude();
         double lu = bdLocation.getLongitude();
         String str = bdLocation.getAddrStr();
-        if(addrNameView!=null)
+        if (addrNameView != null)
             addrNameView.setText(address);
         popuInfoView.setVisibility(View.VISIBLE);
-
+        /**
+         * 进入导航部分：稍微不符合使用逻辑,可根据实际情况调整
+         */
         /**
          * 首先进行授权
          */
-        if(!initSuccess&&initDirs())
+        if (!initSuccess && initDirs())
             initNavi();
-        /**
-         * 获取到这去 按钮
-         */
-        Button goButton = (Button)findViewById(R.id.goButton);
         /**
          * 为到这去按钮绑定点击事件
          */
@@ -435,15 +493,14 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                 /**
                  * 判断是否已经授权
                  */
-                if(!BaiduNaviManager.isNaviInited())
-                {
+                if (!BaiduNaviManager.isNaviInited()) {
                     Toast.makeText(MainActivity.this, "授权失败咯", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 /**
                  * 获取该点的坐标位置
                  */
-                LatLng ll = new LatLng(bdLocation.getLatitude(),bdLocation.getLongitude());
+                LatLng ll = new LatLng(bdLocation.getLatitude(), bdLocation.getLongitude());
                 BNRoutePlanNode sNode = null;
                 BNRoutePlanNode eNode = null;
 
@@ -456,7 +513,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                         BNRoutePlanNode.CoordinateType.BD09LL
                 ); //坐标类型
                 eNode = new BNRoutePlanNode(
-                        bdLocation.getLongitude(),bdLocation.getLatitude(),address,
+                        bdLocation.getLongitude(), bdLocation.getLatitude(), address,
                         null,
                         BNRoutePlanNode.CoordinateType.BD09LL);
 
@@ -481,6 +538,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             }
         });
     }
+
     String authinfo = null;
 
     /**
@@ -498,7 +556,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                     showToastMsg("Handler : TTS play end");
                     break;
                 }
-                default :
+                default:
                     break;
             }
         }
@@ -529,8 +587,10 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             }
         });
     }
+
     /**
      * 初始化SD卡，在SD卡路径下新建文件夹：App目录名，文件中包含了很多东西，比如log、cache等等
+     *
      * @return
      */
     private boolean initDirs() {
@@ -549,6 +609,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         }
         return true;
     }
+
     /**
      * 使用SDK前，先进行百度服务授权和引擎初始化
      */
@@ -574,27 +635,30 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             }
 
             public void initSuccess() {
-                Toast.makeText(MainActivity.this, "百度导航引擎初始化成功", Toast.LENGTH_SHORT).show();
                 initSuccess = true;
                 initSetting();
+                goButton.setText("授权成功,点击进入导航");
+                goButton.setEnabled(true);
             }
 
             public void initStart() {
-                Toast.makeText(MainActivity.this, "百度导航引擎初始化开始", Toast.LENGTH_SHORT).show();
+               // Toast.makeText(MainActivity.this, "百度导航引擎初始化开始", Toast.LENGTH_SHORT).show();
             }
 
             public void initFailed() {
-                Toast.makeText(MainActivity.this, "百度导航引擎初始化失败", Toast.LENGTH_SHORT).show();
+               // Toast.makeText(MainActivity.this, "百度导航引擎初始化失败", Toast.LENGTH_SHORT).show();
             }
-        },  null, ttsHandler, ttsPlayStateListener);
+        }, null, ttsHandler, ttsPlayStateListener);
 
     }
+
     private String getSdcardDir() {
         if (Environment.getExternalStorageState().equalsIgnoreCase(Environment.MEDIA_MOUNTED)) {
             return Environment.getExternalStorageDirectory().toString();
         }
         return null;
     }
+
     /**
      * 导航回调监听器
      */
@@ -628,6 +692,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             startActivity(intent);
 
         }
+
         @Override
         public void onRoutePlanFailed() {
             // TODO Auto-generated method stub
@@ -638,7 +703,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
     /**
      * 导航设置管理器
      */
-    private void initSetting(){
+    private void initSetting() {
         /**
          * 日夜模式 1：自动模式 2：白天模式 3：夜间模式
          */
@@ -728,17 +793,14 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
     };
 
 
-
     /**
-         * 点击事件类
-         */
-    private class OnClickListener implements View.OnClickListener
-    {
+     * 点击事件类
+     */
+    private class OnClickListener implements View.OnClickListener {
         @Override
         public void onClick(View view) {
             Intent intent;
-            switch (view.getId())
-            {
+            switch (view.getId()) {
                 case R.id.searchBtn:
                     poiSearch.searchInCity(
                             new PoiCitySearchOption()
@@ -751,6 +813,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             }
         }
     }
+
     /**
      * 定位SDK监听函数
      */
@@ -782,23 +845,26 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                 builder.target(myLocation).zoom(18.0f);
                 baiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
             }
-            String locationStr = "当前位置：("+location.getLongitude()+","+location.getLatitude()+")\n方向："+lastX;
+            String locationStr = "当前位置:(" + location.getLongitude() + "," + location.getLatitude() + ")\n方向：" + lastX;
             locationText.setText(locationStr);
             baiduMap.addOverlay(
                     new TextOptions()
-                            .position(new LatLng(location.getLatitude()+0.001,location.getLongitude()))
-                            .text("当前位置：("+location.getLongitude()+","+location.getLatitude()+")").fontSize(22));
+                            .position(new LatLng(location.getLatitude() + 0.001, location.getLongitude()))
+                            .text("当前位置:(" + location.getLongitude() + "," + location.getLatitude() + ")").fontSize(22));
         }
+
         @Override
         public void onConnectHotSpotMessage(String s, int i) {
 
         }
     }
+
     @Override
     protected void onPause() {
         mapView.onPause();
         super.onPause();
     }
+
     @Override
     protected void onResume() {
         mapView.onResume();
