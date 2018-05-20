@@ -3,16 +3,9 @@
     package="com.example.lbstest">
 
     <!-- 百度地图 需要的权限 -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.android.launcher.permission.READ_SETTINGS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.GET_TASKS" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
-
     <!-- 百度地图API所需权限 -->
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-permission android:name="android.permission.USE_CREDENTIALS" />
@@ -30,7 +23,6 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- 访问精确位置的权限 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -47,7 +39,8 @@
         <!-- 百度地图API KEY -->
         <meta-data
             android:name="com.baidu.lbsapi.API_KEY"
-            android:value="w0pcNA1TO7BwrYFTohBVN1WP0xrouINP" />
+            android:value = "l8mUGoqVnXMZjHhnGFpYqXxrd8WAyOjE"
+            />
 
         <!-- 百度定位服务 -->
         <service

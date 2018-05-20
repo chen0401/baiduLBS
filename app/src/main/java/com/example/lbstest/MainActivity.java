@@ -69,6 +69,16 @@ import java.util.List;
  * create by chentravelling@163.com
  */
 public class MainActivity extends Activity implements OnGetGeoCoderResultListener {
+    public static final String ROUTE_PLAN_NODE = "routePlanNode";
+    /**
+     * 全局变量
+     */
+    private static final String APP_FOLDER_NAME = "lbstest";    //app在SD卡中的目录名
+    public static List<Activity> activityList = new LinkedList<>();
+    private final String TTS_API_KEY = "9825418";               //语音播报api_key
+    boolean isFirstLoc = true;                                  //是否首次定位
+    GeoCoder mSearch = null;                                    //地理编码模块
+    String authinfo = null;
     /**
      * UI相关
      */
@@ -78,32 +88,115 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
     private Button searchBtn = null;                            //搜索按钮
     private TextView locationText = null;                       //显示的当前地址的view
     private Button goButton = null;                             //到这去 按钮
-    /**
-     * 全局变量
-     */
-    private static final String APP_FOLDER_NAME = "lbstest";    //app在SD卡中的目录名
     private String mSDCardPath = null;
-    public static final String ROUTE_PLAN_NODE = "routePlanNode";
-    private final String TTS_API_KEY = "9825418";               //语音播报api_key
     /**
      * 百度地图相关
      */
     private LocationClient locationClient;                      //定位SDK核心类
     private MapView mapView;                                    //百度地图控件
     private BaiduMap baiduMap;                                  //百度地图对象
-    boolean isFirstLoc = true;                                  //是否首次定位
     private LatLng myLocation;                                  //当前定位信息
     private LatLng clickLocation;                               //长按地址信息
     private BDLocation currentLocation;                         //当前定位信息[最好使用这个]
-
     private PoiSearch poiSearch;                                //POI搜索模块
     private SuggestionSearch suggestionSearch = null;           //模糊搜索模块
-    GeoCoder mSearch = null;                                    //地理编码模块
     private MySensorEventListener mySensorEventListener;        //传感器
     private float lastX = 0.0f;                                 //传感器返回的方向
     private boolean initSuccess = false;                        //初始化标志位
-    public static List<Activity> activityList = new LinkedList<>();
+    /**
+     * 内部TTS播报状态回传handler
+     */
+    private Handler ttsHandler = new Handler() {
+        public void handleMessage(Message msg) {
+            int type = msg.what;
+            switch (type) {
+                case BaiduNaviManager.TTSPlayMsgType.PLAY_START_MSG: {
+                    showToastMsg("Handler : TTS play start");
+                    break;
+                }
+                case BaiduNaviManager.TTSPlayMsgType.PLAY_END_MSG: {
+                    showToastMsg("Handler : TTS play end");
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    };
+    /**
+     * 内部TTS播报状态回调接口
+     */
+    private BaiduNaviManager.TTSPlayStateListener ttsPlayStateListener = new BaiduNaviManager.TTSPlayStateListener() {
 
+        @Override
+        public void playEnd() {
+            showToastMsg("TTSPlayStateListener : TTS play end");
+        }
+
+        @Override
+        public void playStart() {
+            showToastMsg("TTSPlayStateListener : TTS play start");
+        }
+    };
+    private BNOuterTTSPlayerCallback mTTSCallback = new BNOuterTTSPlayerCallback() {
+
+        @Override
+        public void stopTTS() {
+            // TODO Auto-generated method stub
+            Log.e("test_TTS", "stopTTS");
+        }
+
+        @Override
+        public void resumeTTS() {
+            // TODO Auto-generated method stub
+            Log.e("test_TTS", "resumeTTS");
+        }
+
+        @Override
+        public void releaseTTSPlayer() {
+            // TODO Auto-generated method stub
+            Log.e("test_TTS", "releaseTTSPlayer");
+        }
+
+        @Override
+        public int playTTSText(String speech, int bPreempt) {
+            // TODO Auto-generated method stub
+            Log.e("test_TTS", "playTTSText" + "_" + speech + "_" + bPreempt);
+
+            return 1;
+        }
+
+        @Override
+        public void phoneHangUp() {
+            // TODO Auto-generated method stub
+            Log.e("test_TTS", "phoneHangUp");
+        }
+
+        @Override
+        public void phoneCalling() {
+            // TODO Auto-generated method stub
+            Log.e("test_TTS", "phoneCalling");
+        }
+
+        @Override
+        public void pauseTTS() {
+            // TODO Auto-generated method stub
+            Log.e("test_TTS", "pauseTTS");
+        }
+
+        @Override
+        public void initTTSPlayer() {
+            // TODO Auto-generated method stub
+            Log.e("test_TTS", "initTTSPlayer");
+        }
+
+        @Override
+        public int getTTSState() {
+            // TODO Auto-generated method stub
+            Log.e("test_TTS", "getTTSState");
+            return 1;
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,28 +209,6 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         initBaiduMap();
         //初始化传感器
         initSensor();
-    }
-
-    private class TextViewWatcher implements TextWatcher {
-        @Override
-        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-        }
-
-        @Override
-        public void onTextChanged(CharSequence s, int start, int before, int count) {
-            if (s.length() < 1) {
-                return;
-            }
-            suggestionSearch
-                    .requestSuggestion(new SuggestionSearchOption()
-                            .city(currentLocation.getCity())
-                            .keyword(s.toString()));
-        }
-
-        @Override
-        public void afterTextChanged(Editable s) {
-
-        }
     }
 
     /**
@@ -241,6 +312,305 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         mapView = (MapView) findViewById(R.id.bmapView);
         //到这去 按钮
         goButton = (Button) findViewById(R.id.go_button);
+    }
+
+    /**
+     * 反向搜索
+     *
+     * @param latLng
+     */
+    public void reverseSearch(LatLng latLng) {
+        mSearch.reverseGeoCode(new ReverseGeoCodeOption()
+                .location(latLng));
+    }
+
+    /**
+     * 监听正向地理编码和反向地理编码搜索结果
+     *
+     * @param result
+     */
+    @Override
+    public void onGetGeoCodeResult(GeoCodeResult result) {
+        if (result == null || result.error != SearchResult.ERRORNO.NO_ERROR) {
+            Toast.makeText(MainActivity.this, "抱歉，未能找到结果", Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+        baiduMap.clear();
+        baiduMap.addOverlay(new MarkerOptions().position(result.getLocation())
+                .icon(BitmapDescriptorFactory
+                        .fromResource(R.drawable.icon_gcoding)));
+        baiduMap.setMapStatus(MapStatusUpdateFactory.newLatLng(result
+                .getLocation()));
+        String strInfo = String.format("纬度：%f 经度：%f",
+                result.getLocation().latitude, result.getLocation().longitude);
+        Toast.makeText(MainActivity.this, strInfo, Toast.LENGTH_LONG).show();
+
+    }
+
+    @Override
+    public void onGetReverseGeoCodeResult(ReverseGeoCodeResult result) {
+        if (result == null || result.error != SearchResult.ERRORNO.NO_ERROR) {
+            Toast.makeText(MainActivity.this, "抱歉，未能找到结果", Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+        baiduMap.clear();
+        baiduMap.addOverlay(
+                new MarkerOptions()
+                        .position(result.getLocation())                                     //坐标位置
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_gcoding))  //图标
+                        .title(result.getAddress())                                         //标题
+
+        );
+        baiduMap.setMapStatus(MapStatusUpdateFactory.newLatLng(result
+                .getLocation()));
+        /**
+         * 弹出InfoWindow，显示信息
+         */
+        BDLocation bdLocation = new BDLocation();
+        bdLocation.setLatitude(result.getLocation().latitude);
+        bdLocation.setLongitude(result.getLocation().longitude);
+        bdLocation.setAddrStr(result.getAddress());
+        String add = bdLocation.getAddrStr();
+        poputInfo(bdLocation, result.getAddress());
+    }
+
+    /**
+     * 弹出InfoWindow，显示信息
+     */
+    public void poputInfo(final BDLocation bdLocation, final String address) {
+        /**
+         * 获取弹窗控件
+         */
+        popuInfoView = (RelativeLayout) findViewById(R.id.id_marker_info);
+        TextView addrNameView = (TextView) findViewById(R.id.addrName);
+        double la = bdLocation.getLatitude();
+        double lu = bdLocation.getLongitude();
+        String str = bdLocation.getAddrStr();
+        if (addrNameView != null)
+            addrNameView.setText(address);
+        popuInfoView.setVisibility(View.VISIBLE);
+        /**
+         * 进入导航部分：稍微不符合使用逻辑,可根据实际情况调整
+         */
+        /**
+         * 首先进行授权
+         */
+        if (!initSuccess && initDirs())
+            initNavi();
+        /**
+         * 为到这去按钮绑定点击事件
+         */
+        goButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                /**
+                 * 判断是否已经授权
+                 */
+                if (!BaiduNaviManager.isNaviInited()) {
+                    Toast.makeText(MainActivity.this, "授权失败咯", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                /**
+                 * 获取该点的坐标位置
+                 */
+                LatLng ll = new LatLng(bdLocation.getLatitude(), bdLocation.getLongitude());
+                BNRoutePlanNode sNode = null;
+                BNRoutePlanNode eNode = null;
+
+                Toast.makeText(MainActivity.this, "开始获取起点和终点", Toast.LENGTH_SHORT).show();
+                sNode = new BNRoutePlanNode(
+                        currentLocation.getLongitude(),          //经度
+                        currentLocation.getLatitude(),           //纬度
+                        currentLocation.getBuildingName(),       //算路节点名
+                        null,                                   //算路节点地址描述
+                        BNRoutePlanNode.CoordinateType.BD09LL
+                ); //坐标类型
+                eNode = new BNRoutePlanNode(
+                        bdLocation.getLongitude(), bdLocation.getLatitude(), address,
+                        null,
+                        BNRoutePlanNode.CoordinateType.BD09LL);
+
+                if (sNode != null && eNode != null) {
+                    List<BNRoutePlanNode> list = new ArrayList<BNRoutePlanNode>();
+                    list.add(sNode);
+                    list.add(eNode);
+                    /**
+                     * 发起算路操作并在算路成功后通过回调监听器进入导航过程,返回是否执行成功
+                     */
+                    BaiduNaviManager
+                            .getInstance()
+                            .launchNavigator(
+                                    MainActivity.this,               //建议是应用的主Activity
+                                    list,                            //传入的算路节点，顺序是起点、途经点、终点，其中途经点最多三个
+                                    1,                               //算路偏好 1:推荐 8:少收费 2:高速优先 4:少走高速 16:躲避拥堵
+                                    true,                            //true表示真实GPS导航，false表示模拟导航
+                                    new DemoRoutePlanListener(sNode)//开始导航回调监听器，在该监听器里一般是进入导航过程页面
+                            );
+                }
+
+            }
+        });
+    }
+
+    public void showToastMsg(final String msg) {
+        MainActivity.this.runOnUiThread(new Runnable() {
+
+            @Override
+            public void run() {
+                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /**
+     * 初始化SD卡，在SD卡路径下新建文件夹：App目录名，文件中包含了很多东西，比如log、cache等等
+     *
+     * @return
+     */
+    private boolean initDirs() {
+        mSDCardPath = getSdcardDir();
+        if (mSDCardPath == null) {
+            return false;
+        }
+        File f = new File(mSDCardPath, APP_FOLDER_NAME);
+        if (!f.exists()) {
+            try {
+                f.mkdir();
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 使用SDK前，先进行百度服务授权和引擎初始化
+     */
+    private void initNavi() {
+
+        BNOuterTTSPlayerCallback ttsCallback = null;
+
+        BaiduNaviManager.getInstance().init(this, mSDCardPath, APP_FOLDER_NAME, new BaiduNaviManager.NaviInitListener() {
+            @Override
+            public void onAuthResult(int status, String msg) {
+                if (0 == status) {
+                    authinfo = "key校验成功!";
+                } else {
+                    authinfo = "key校验失败, " + msg;
+                }
+                MainActivity.this.runOnUiThread(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        Toast.makeText(MainActivity.this, authinfo, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+
+            public void initSuccess() {
+                initSuccess = true;
+                initSetting();
+                goButton.setText("授权成功,点击进入导航");
+                goButton.setEnabled(true);
+            }
+
+            public void initStart() {
+               // Toast.makeText(MainActivity.this, "百度导航引擎初始化开始", Toast.LENGTH_SHORT).show();
+            }
+
+            public void initFailed() {
+               // Toast.makeText(MainActivity.this, "百度导航引擎初始化失败", Toast.LENGTH_SHORT).show();
+            }
+        }, null, ttsHandler, ttsPlayStateListener);
+
+    }
+
+    private String getSdcardDir() {
+        if (Environment.getExternalStorageState().equalsIgnoreCase(Environment.MEDIA_MOUNTED)) {
+            return Environment.getExternalStorageDirectory().toString();
+        }
+        return null;
+    }
+
+    /**
+     * 导航设置管理器
+     */
+    private void initSetting() {
+        /**
+         * 日夜模式 1：自动模式 2：白天模式 3：夜间模式
+         */
+        BNaviSettingManager.setDayNightMode(BNaviSettingManager.DayNightMode.DAY_NIGHT_MODE_DAY);
+        /**
+         * 设置全程路况显示
+         */
+        BNaviSettingManager.setShowTotalRoadConditionBar(BNaviSettingManager.PreViewRoadCondition.ROAD_CONDITION_BAR_SHOW_ON);
+        /**
+         * 设置语音播报模式
+         */
+        BNaviSettingManager.setVoiceMode(BNaviSettingManager.VoiceMode.Veteran);
+        /**
+         * 设置省电模式
+         */
+        BNaviSettingManager.setPowerSaveMode(BNaviSettingManager.PowerSaveMode.DISABLE_MODE);
+        /**
+         * 设置实时路况条
+         */
+        BNaviSettingManager.setRealRoadCondition(BNaviSettingManager.RealRoadCondition.NAVI_ITS_ON);
+
+        Bundle bundle = new Bundle();
+        // 必须设置APPID，否则会静音
+        bundle.putString(BNCommonSettingParam.TTS_APP_ID, TTS_API_KEY);
+        BNaviSettingManager.setNaviSdkParam(bundle);
+
+    }
+
+    @Override
+    protected void onPause() {
+        mapView.onPause();
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        mapView.onResume();
+        baiduMap.clear();
+        super.onResume();
+    }
+
+    @Override
+    protected void onDestroy() {
+        // 退出时销毁定位
+        locationClient.stop();
+        // 关闭定位图层
+        baiduMap.setMyLocationEnabled(false);
+        mapView.onDestroy();
+        mapView = null;
+        super.onDestroy();
+    }
+
+    private class TextViewWatcher implements TextWatcher {
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+        }
+
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before, int count) {
+            if (s.length() < 1) {
+                return;
+            }
+            suggestionSearch
+                    .requestSuggestion(new SuggestionSearchOption()
+                            .city(currentLocation.getCity())
+                            .keyword(s.toString()));
+        }
+
+        @Override
+        public void afterTextChanged(Editable s) {
+
+        }
     }
 
     private class PoiSearchListener implements OnGetPoiSearchResultListener {
@@ -400,266 +770,6 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
     }
 
     /**
-     * 反向搜索
-     *
-     * @param latLng
-     */
-    public void reverseSearch(LatLng latLng) {
-        mSearch.reverseGeoCode(new ReverseGeoCodeOption()
-                .location(latLng));
-    }
-
-    /**
-     * 监听正向地理编码和反向地理编码搜索结果
-     *
-     * @param result
-     */
-    @Override
-    public void onGetGeoCodeResult(GeoCodeResult result) {
-        if (result == null || result.error != SearchResult.ERRORNO.NO_ERROR) {
-            Toast.makeText(MainActivity.this, "抱歉，未能找到结果", Toast.LENGTH_LONG)
-                    .show();
-            return;
-        }
-        baiduMap.clear();
-        baiduMap.addOverlay(new MarkerOptions().position(result.getLocation())
-                .icon(BitmapDescriptorFactory
-                        .fromResource(R.drawable.icon_gcoding)));
-        baiduMap.setMapStatus(MapStatusUpdateFactory.newLatLng(result
-                .getLocation()));
-        String strInfo = String.format("纬度：%f 经度：%f",
-                result.getLocation().latitude, result.getLocation().longitude);
-        Toast.makeText(MainActivity.this, strInfo, Toast.LENGTH_LONG).show();
-
-    }
-
-    @Override
-    public void onGetReverseGeoCodeResult(ReverseGeoCodeResult result) {
-        if (result == null || result.error != SearchResult.ERRORNO.NO_ERROR) {
-            Toast.makeText(MainActivity.this, "抱歉，未能找到结果", Toast.LENGTH_LONG)
-                    .show();
-            return;
-        }
-        baiduMap.clear();
-        baiduMap.addOverlay(
-                new MarkerOptions()
-                        .position(result.getLocation())                                     //坐标位置
-                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_gcoding))  //图标
-                        .title(result.getAddress())                                         //标题
-
-        );
-        baiduMap.setMapStatus(MapStatusUpdateFactory.newLatLng(result
-                .getLocation()));
-        /**
-         * 弹出InfoWindow，显示信息
-         */
-        BDLocation bdLocation = new BDLocation();
-        bdLocation.setLatitude(result.getLocation().latitude);
-        bdLocation.setLongitude(result.getLocation().longitude);
-        bdLocation.setAddrStr(result.getAddress());
-        String add = bdLocation.getAddrStr();
-        poputInfo(bdLocation, result.getAddress());
-    }
-
-    /**
-     * 弹出InfoWindow，显示信息
-     */
-    public void poputInfo(final BDLocation bdLocation, final String address) {
-        /**
-         * 获取弹窗控件
-         */
-        popuInfoView = (RelativeLayout) findViewById(R.id.id_marker_info);
-        TextView addrNameView = (TextView) findViewById(R.id.addrName);
-        double la = bdLocation.getLatitude();
-        double lu = bdLocation.getLongitude();
-        String str = bdLocation.getAddrStr();
-        if (addrNameView != null)
-            addrNameView.setText(address);
-        popuInfoView.setVisibility(View.VISIBLE);
-        /**
-         * 进入导航部分：稍微不符合使用逻辑,可根据实际情况调整
-         */
-        /**
-         * 首先进行授权
-         */
-        if (!initSuccess && initDirs())
-            initNavi();
-        /**
-         * 为到这去按钮绑定点击事件
-         */
-        goButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                /**
-                 * 判断是否已经授权
-                 */
-                if (!BaiduNaviManager.isNaviInited()) {
-                    Toast.makeText(MainActivity.this, "授权失败咯", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                /**
-                 * 获取该点的坐标位置
-                 */
-                LatLng ll = new LatLng(bdLocation.getLatitude(), bdLocation.getLongitude());
-                BNRoutePlanNode sNode = null;
-                BNRoutePlanNode eNode = null;
-
-                Toast.makeText(MainActivity.this, "开始获取起点和终点", Toast.LENGTH_SHORT).show();
-                sNode = new BNRoutePlanNode(
-                        currentLocation.getLongitude(),          //经度
-                        currentLocation.getLatitude(),           //纬度
-                        currentLocation.getBuildingName(),       //算路节点名
-                        null,                                   //算路节点地址描述
-                        BNRoutePlanNode.CoordinateType.BD09LL
-                ); //坐标类型
-                eNode = new BNRoutePlanNode(
-                        bdLocation.getLongitude(), bdLocation.getLatitude(), address,
-                        null,
-                        BNRoutePlanNode.CoordinateType.BD09LL);
-
-                if (sNode != null && eNode != null) {
-                    List<BNRoutePlanNode> list = new ArrayList<BNRoutePlanNode>();
-                    list.add(sNode);
-                    list.add(eNode);
-                    /**
-                     * 发起算路操作并在算路成功后通过回调监听器进入导航过程,返回是否执行成功
-                     */
-                    BaiduNaviManager
-                            .getInstance()
-                            .launchNavigator(
-                                    MainActivity.this,               //建议是应用的主Activity
-                                    list,                            //传入的算路节点，顺序是起点、途经点、终点，其中途经点最多三个
-                                    1,                               //算路偏好 1:推荐 8:少收费 2:高速优先 4:少走高速 16:躲避拥堵
-                                    true,                            //true表示真实GPS导航，false表示模拟导航
-                                    new DemoRoutePlanListener(sNode)//开始导航回调监听器，在该监听器里一般是进入导航过程页面
-                            );
-                }
-
-            }
-        });
-    }
-
-    String authinfo = null;
-
-    /**
-     * 内部TTS播报状态回传handler
-     */
-    private Handler ttsHandler = new Handler() {
-        public void handleMessage(Message msg) {
-            int type = msg.what;
-            switch (type) {
-                case BaiduNaviManager.TTSPlayMsgType.PLAY_START_MSG: {
-                    showToastMsg("Handler : TTS play start");
-                    break;
-                }
-                case BaiduNaviManager.TTSPlayMsgType.PLAY_END_MSG: {
-                    showToastMsg("Handler : TTS play end");
-                    break;
-                }
-                default:
-                    break;
-            }
-        }
-    };
-
-    /**
-     * 内部TTS播报状态回调接口
-     */
-    private BaiduNaviManager.TTSPlayStateListener ttsPlayStateListener = new BaiduNaviManager.TTSPlayStateListener() {
-
-        @Override
-        public void playEnd() {
-            showToastMsg("TTSPlayStateListener : TTS play end");
-        }
-
-        @Override
-        public void playStart() {
-            showToastMsg("TTSPlayStateListener : TTS play start");
-        }
-    };
-
-    public void showToastMsg(final String msg) {
-        MainActivity.this.runOnUiThread(new Runnable() {
-
-            @Override
-            public void run() {
-                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    /**
-     * 初始化SD卡，在SD卡路径下新建文件夹：App目录名，文件中包含了很多东西，比如log、cache等等
-     *
-     * @return
-     */
-    private boolean initDirs() {
-        mSDCardPath = getSdcardDir();
-        if (mSDCardPath == null) {
-            return false;
-        }
-        File f = new File(mSDCardPath, APP_FOLDER_NAME);
-        if (!f.exists()) {
-            try {
-                f.mkdir();
-            } catch (Exception e) {
-                e.printStackTrace();
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * 使用SDK前，先进行百度服务授权和引擎初始化
-     */
-    private void initNavi() {
-
-        BNOuterTTSPlayerCallback ttsCallback = null;
-
-        BaiduNaviManager.getInstance().init(this, mSDCardPath, APP_FOLDER_NAME, new BaiduNaviManager.NaviInitListener() {
-            @Override
-            public void onAuthResult(int status, String msg) {
-                if (0 == status) {
-                    authinfo = "key校验成功!";
-                } else {
-                    authinfo = "key校验失败, " + msg;
-                }
-                MainActivity.this.runOnUiThread(new Runnable() {
-
-                    @Override
-                    public void run() {
-                        Toast.makeText(MainActivity.this, authinfo, Toast.LENGTH_LONG).show();
-                    }
-                });
-            }
-
-            public void initSuccess() {
-                initSuccess = true;
-                initSetting();
-                goButton.setText("授权成功,点击进入导航");
-                goButton.setEnabled(true);
-            }
-
-            public void initStart() {
-               // Toast.makeText(MainActivity.this, "百度导航引擎初始化开始", Toast.LENGTH_SHORT).show();
-            }
-
-            public void initFailed() {
-               // Toast.makeText(MainActivity.this, "百度导航引擎初始化失败", Toast.LENGTH_SHORT).show();
-            }
-        }, null, ttsHandler, ttsPlayStateListener);
-
-    }
-
-    private String getSdcardDir() {
-        if (Environment.getExternalStorageState().equalsIgnoreCase(Environment.MEDIA_MOUNTED)) {
-            return Environment.getExternalStorageDirectory().toString();
-        }
-        return null;
-    }
-
-    /**
      * 导航回调监听器
      */
     public class DemoRoutePlanListener implements BaiduNaviManager.RoutePlanListener {
@@ -699,99 +809,6 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             Toast.makeText(MainActivity.this, "算路失败", Toast.LENGTH_SHORT).show();
         }
     }
-
-    /**
-     * 导航设置管理器
-     */
-    private void initSetting() {
-        /**
-         * 日夜模式 1：自动模式 2：白天模式 3：夜间模式
-         */
-        BNaviSettingManager.setDayNightMode(BNaviSettingManager.DayNightMode.DAY_NIGHT_MODE_DAY);
-        /**
-         * 设置全程路况显示
-         */
-        BNaviSettingManager.setShowTotalRoadConditionBar(BNaviSettingManager.PreViewRoadCondition.ROAD_CONDITION_BAR_SHOW_ON);
-        /**
-         * 设置语音播报模式
-         */
-        BNaviSettingManager.setVoiceMode(BNaviSettingManager.VoiceMode.Veteran);
-        /**
-         * 设置省电模式
-         */
-        BNaviSettingManager.setPowerSaveMode(BNaviSettingManager.PowerSaveMode.DISABLE_MODE);
-        /**
-         * 设置实时路况条
-         */
-        BNaviSettingManager.setRealRoadCondition(BNaviSettingManager.RealRoadCondition.NAVI_ITS_ON);
-
-        Bundle bundle = new Bundle();
-        // 必须设置APPID，否则会静音
-        bundle.putString(BNCommonSettingParam.TTS_APP_ID, TTS_API_KEY);
-        BNaviSettingManager.setNaviSdkParam(bundle);
-
-    }
-
-    private BNOuterTTSPlayerCallback mTTSCallback = new BNOuterTTSPlayerCallback() {
-
-        @Override
-        public void stopTTS() {
-            // TODO Auto-generated method stub
-            Log.e("test_TTS", "stopTTS");
-        }
-
-        @Override
-        public void resumeTTS() {
-            // TODO Auto-generated method stub
-            Log.e("test_TTS", "resumeTTS");
-        }
-
-        @Override
-        public void releaseTTSPlayer() {
-            // TODO Auto-generated method stub
-            Log.e("test_TTS", "releaseTTSPlayer");
-        }
-
-        @Override
-        public int playTTSText(String speech, int bPreempt) {
-            // TODO Auto-generated method stub
-            Log.e("test_TTS", "playTTSText" + "_" + speech + "_" + bPreempt);
-
-            return 1;
-        }
-
-        @Override
-        public void phoneHangUp() {
-            // TODO Auto-generated method stub
-            Log.e("test_TTS", "phoneHangUp");
-        }
-
-        @Override
-        public void phoneCalling() {
-            // TODO Auto-generated method stub
-            Log.e("test_TTS", "phoneCalling");
-        }
-
-        @Override
-        public void pauseTTS() {
-            // TODO Auto-generated method stub
-            Log.e("test_TTS", "pauseTTS");
-        }
-
-        @Override
-        public void initTTSPlayer() {
-            // TODO Auto-generated method stub
-            Log.e("test_TTS", "initTTSPlayer");
-        }
-
-        @Override
-        public int getTTSState() {
-            // TODO Auto-generated method stub
-            Log.e("test_TTS", "getTTSState");
-            return 1;
-        }
-    };
-
 
     /**
      * 点击事件类
@@ -845,7 +862,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                 builder.target(myLocation).zoom(18.0f);
                 baiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
             }
-            String locationStr = "当前位置:(" + location.getLongitude() + "," + location.getLatitude() + ")\n方向：" + lastX;
+            String locationStr = "当前位置:(" + location.getLongitude() + "," + location.getLatitude() + ")\n方向：" + lastX+"类型："+location.getLocType();
             locationText.setText(locationStr);
             baiduMap.addOverlay(
                     new TextOptions()
@@ -857,29 +874,5 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         public void onConnectHotSpotMessage(String s, int i) {
 
         }
-    }
-
-    @Override
-    protected void onPause() {
-        mapView.onPause();
-        super.onPause();
-    }
-
-    @Override
-    protected void onResume() {
-        mapView.onResume();
-        baiduMap.clear();
-        super.onResume();
-    }
-
-    @Override
-    protected void onDestroy() {
-        // 退出时销毁定位
-        locationClient.stop();
-        // 关闭定位图层
-        baiduMap.setMyLocationEnabled(false);
-        mapView.onDestroy();
-        mapView = null;
-        super.onDestroy();
     }
 }
