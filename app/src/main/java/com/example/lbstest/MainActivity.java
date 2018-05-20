@@ -492,7 +492,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
     private void initNavi() {
 
         BNOuterTTSPlayerCallback ttsCallback = null;
-
+        Toast.makeText(MainActivity.this,"授权",Toast.LENGTH_LONG).show();
         BaiduNaviManager.getInstance().init(this, mSDCardPath, APP_FOLDER_NAME, new BaiduNaviManager.NaviInitListener() {
             @Override
             public void onAuthResult(int status, String msg) {
@@ -502,7 +502,6 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                     authinfo = "key校验失败, " + msg;
                 }
                 MainActivity.this.runOnUiThread(new Runnable() {
-
                     @Override
                     public void run() {
                         Toast.makeText(MainActivity.this, authinfo, Toast.LENGTH_LONG).show();
@@ -518,11 +517,11 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             }
 
             public void initStart() {
-               // Toast.makeText(MainActivity.this, "百度导航引擎初始化开始", Toast.LENGTH_SHORT).show();
+               Toast.makeText(MainActivity.this, "百度导航引擎初始化开始", Toast.LENGTH_SHORT).show();
             }
 
             public void initFailed() {
-               // Toast.makeText(MainActivity.this, "百度导航引擎初始化失败", Toast.LENGTH_SHORT).show();
+               Toast.makeText(MainActivity.this, "百度导航引擎初始化失败", Toast.LENGTH_SHORT).show();
             }
         }, null, ttsHandler, ttsPlayStateListener);
 
