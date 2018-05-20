@@ -86,7 +86,6 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
     private AutoCompleteTextView autoCompleteTextView = null;   //输入搜索关键字的view
     private ArrayAdapter<String> adapter = null;                //适配器,展示搜索结果
     private Button searchBtn = null;                            //搜索按钮
-    private TextView locationText = null;                       //显示的当前地址的view
     private Button goButton = null;                             //到这去 按钮
     private String mSDCardPath = null;
     /**
@@ -298,8 +297,6 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
      * 界面初始化
      **/
     private void initView() {
-        //显示位置的text
-        locationText = (TextView) findViewById(R.id.location_text);
         //关键字输入view
         autoCompleteTextView = (AutoCompleteTextView) findViewById(R.id.autoCompleteTextView);
         //增加监听：text change listener
@@ -862,11 +859,8 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                 baiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
             }
             String locationStr = "当前位置:(" + location.getLongitude() + "," + location.getLatitude() + ")\n方向：" + lastX+"类型："+location.getLocType();
-            locationText.setText(locationStr);
-            baiduMap.addOverlay(
-                    new TextOptions()
-                            .position(new LatLng(location.getLatitude() + 0.001, location.getLongitude()))
-                            .text("当前位置:(" + location.getLongitude() + "," + location.getLatitude() + ")").fontSize(22));
+            //locationText.setText(locationStr);
+            
         }
 
         @Override

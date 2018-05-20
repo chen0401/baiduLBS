@@ -77,16 +77,4 @@
 
 
     </RelativeLayout>
-
-    <TextView
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:text="暂无定位数据"
-        android:id="@+id/location_text"
-        android:layout_below="@+id/search_layout"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:textSize="18dp"
-        android:textColor="#ff0000" />
-
 </RelativeLayout>
