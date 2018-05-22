@@ -33,7 +33,6 @@ import com.baidu.mapapi.map.Marker;
 import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationConfiguration;
 import com.baidu.mapapi.map.MyLocationData;
-import com.baidu.mapapi.map.TextOptions;
 import com.baidu.mapapi.model.LatLng;
 import com.baidu.mapapi.search.core.CityInfo;
 import com.baidu.mapapi.search.core.SearchResult;
@@ -60,7 +59,6 @@ import com.baidu.navisdk.adapter.BNaviSettingManager;
 import com.baidu.navisdk.adapter.BaiduNaviManager;
 
 import java.io.File;
-import java.nio.BufferUnderflowException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -102,6 +100,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
     private MySensorEventListener mySensorEventListener;        //传感器
     private float lastX = 0.0f;                                 //传感器返回的方向
     private boolean initSuccess = false;                        //初始化标志位
+    private boolean initDir = false;
     /**
      * 内部TTS播报状态回传handler
      */
@@ -110,11 +109,11 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             int type = msg.what;
             switch (type) {
                 case BaiduNaviManager.TTSPlayMsgType.PLAY_START_MSG: {
-                    showToastMsg("Handler : TTS play start");
+                    //showToastMsg("Handler : TTS play start");
                     break;
                 }
                 case BaiduNaviManager.TTSPlayMsgType.PLAY_END_MSG: {
-                    showToastMsg("Handler : TTS play end");
+                    //showToastMsg("Handler : TTS play end");
                     break;
                 }
                 default:
@@ -291,6 +290,11 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         suggestionSearch = SuggestionSearch.newInstance();
         //增加监听：模糊搜索查询结果
         suggestionSearch.setOnGetSuggestionResultListener(new SuggestionResultListener());
+        /***
+         * 导航模块需要的初始化
+         */
+        initDir = initDirs();
+        initNavi();
     }
 
     /**
@@ -369,7 +373,6 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         bdLocation.setLatitude(result.getLocation().latitude);
         bdLocation.setLongitude(result.getLocation().longitude);
         bdLocation.setAddrStr(result.getAddress());
-        String add = bdLocation.getAddrStr();
         poputInfo(bdLocation, result.getAddress());
     }
 
@@ -382,9 +385,6 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
          */
         popuInfoView = (RelativeLayout) findViewById(R.id.id_marker_info);
         TextView addrNameView = (TextView) findViewById(R.id.addrName);
-        double la = bdLocation.getLatitude();
-        double lu = bdLocation.getLongitude();
-        String str = bdLocation.getAddrStr();
         if (addrNameView != null)
             addrNameView.setText(address);
         popuInfoView.setVisibility(View.VISIBLE);
@@ -394,7 +394,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
         /**
          * 首先进行授权
          */
-        if (!initSuccess && initDirs())
+        if (!initSuccess && !initDir)
             initNavi();
         /**
          * 为到这去按钮绑定点击事件
@@ -411,8 +411,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                 }
                 /**
                  * 获取该点的坐标位置
-                 */
-                LatLng ll = new LatLng(bdLocation.getLatitude(), bdLocation.getLongitude());
+                 */;
                 BNRoutePlanNode sNode = null;
                 BNRoutePlanNode eNode = null;
 
@@ -489,7 +488,7 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
     private void initNavi() {
 
         BNOuterTTSPlayerCallback ttsCallback = null;
-        Toast.makeText(MainActivity.this,"授权",Toast.LENGTH_LONG).show();
+        //Toast.makeText(MainActivity.this,"授权",Toast.LENGTH_LONG).show();
         BaiduNaviManager.getInstance().init(this, mSDCardPath, APP_FOLDER_NAME, new BaiduNaviManager.NaviInitListener() {
             @Override
             public void onAuthResult(int status, String msg) {
@@ -514,11 +513,11 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
             }
 
             public void initStart() {
-               Toast.makeText(MainActivity.this, "百度导航引擎初始化开始", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(MainActivity.this, "百度导航引擎初始化开始", Toast.LENGTH_SHORT).show();
             }
 
             public void initFailed() {
-               Toast.makeText(MainActivity.this, "百度导航引擎初始化失败", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "百度导航引擎初始化失败", Toast.LENGTH_SHORT).show();
             }
         }, null, ttsHandler, ttsPlayStateListener);
 
@@ -858,9 +857,6 @@ public class MainActivity extends Activity implements OnGetGeoCoderResultListene
                 builder.target(myLocation).zoom(18.0f);
                 baiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
             }
-            String locationStr = "当前位置:(" + location.getLongitude() + "," + location.getLatitude() + ")\n方向：" + lastX+"类型："+location.getLocType();
-            //locationText.setText(locationStr);
-            
         }
 
         @Override
