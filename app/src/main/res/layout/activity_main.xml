@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:context=".MainActivity">
+
+    <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+        <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_weight="1" android:layout_height="100dp">
+            <AutoCompleteTextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:id="@+id/autoCompleteTextView"
+                    android:layout_weight="1"/>
+            <Button
+                    android:text="开始导航"
+                    android:layout_width="200dp"
+                    android:layout_height="wrap_content" tools:layout_editor_absoluteY="16dp"
+                    tools:layout_editor_absoluteX="148dp" android:id="@+id/startWalkGuideBtn"
+                    android:layout_weight="1"/>
+        </LinearLayout>
+        <com.baidu.mapapi.map.MapView
+                android:id="@+id/bmapView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clickable="true" android:layout_weight="1"/>
+    </LinearLayout>
+
+</android.support.constraint.ConstraintLayout>
