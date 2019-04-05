@@ -45,42 +45,45 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends Activity {
-
-    private Button startWalkGuideBtn;
-    private MapView mapView;
-    private BaiduMap baiduMap;
+    /*
+     *  UI相关
+     */
+    private Button startWalkGuideBtn;                           //开始导航按钮
+    private MapView mapView;                                    //百度地图控件
+    private AutoCompleteTextView autoCompleteTextView;          //自动提示输入控件
+    /*
+     *   百度地图相关
+     * */
+    private BaiduMap baiduMap;                                  //百度地图实例
     private PoiSearch poiSearch;                                //POI搜索模块
-
-    private AutoCompleteTextView autoCompleteTextView;
+    private SuggestionSearch suggestionSearch = null;           //模糊搜索模块
+    private RoutePlanSearch routePlanSearch;                    //路径规划模块
+    private WalkNavigateHelper walkNavigateHelper;              //步行导航模块
+    private LocationClient locationClient;                      //位置定位模块
+    /*
+     * 其他变量
+     * */
     private ArrayAdapter<String> adapter = null;                //适配器,展示搜索结果
-
-    private LocationClient locationClient;
     private static final int authBaseRequestCode = 1;
-    private static BDLocation currentLocation;                         //当前定位信息[最好使用这个]
+    private static BDLocation currentLocation;                  //当前定位信息[最好使用这个]
     boolean isFirstLoc = true;                                  //是否首次定位
     private LatLng myLocation;                                  //当前定位信息
     private float lastX = 0.0f;                                 //传感器返回的方向
-    private MySensorEventListener mySensorEventListener;        //传感器
-    private SuggestionSearch suggestionSearch = null;           //模糊搜索模块
-    private RoutePlanSearch routePlanSearch;
-    private static LatLng terminalStation;
-    private WalkNavigateHelper walkNavigateHelper = WalkNavigateHelper.getInstance();
-    public static WalkingRouteLine walkingRouteLine;
-    private final static double MIN_D = 0.000001f;
-    private final static double MAX_MIN_D = 3;
-    private static boolean isWalkGuidering = false;
+    private MySensorEventListener mySensorEventListener;        //传感器监听器
+    private static LatLng terminalStation;                      //终点信息
+    public static WalkingRouteLine walkingRouteLine;            //步行规划路径
+    private final static double MIN_D = 0.000001f;              //浮点型数据是否相等的误差
+    private final static double MAX_MIN_D = 30;                 //是否偏离导航的距离阈值
+    private static boolean isWalkGuidering = false;             //是否已进入导航模式,防止重复进入
     int nodeIndex = -1; // 节点索引,供浏览节点时使用
-    // 浏览路线节点相关
-    Button mBtnPre = null; // 上一个节点
-    Button mBtnNext = null; // 下一个节点
-    private static final String[] authBaseArr = {
+    private static final String[] authBaseArr =                 //需要动态申请的权限
+            {
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.ACCESS_FINE_LOCATION
     };
     private static final String APP_FOLDER_NAME = "eldguider";    //app在SD卡中的目录名
-    private String mSDCardPath = null;
-
-    private static int deviateCount = 0;    //记录偏离导航次数
+    private String mSDCardPath = null;                            //app在SD卡中的路径
+    private static int deviateCount = 0;                          //记录偏离导航次数
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -149,6 +152,7 @@ public class MainActivity extends Activity {
         baiduMap
                 .setMyLocationConfiguration(new MyLocationConfiguration(
                         MyLocationConfiguration.LocationMode.NORMAL, true, null));
+        walkNavigateHelper = WalkNavigateHelper.getInstance();
         walkNavigateHelper.setRouteGuidanceListener(this, new WRouteGuidanceListener());
 
         //POI搜索模块
