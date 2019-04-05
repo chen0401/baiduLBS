@@ -63,11 +63,12 @@ public class MainActivity extends Activity {
     private MySensorEventListener mySensorEventListener;        //传感器
     private SuggestionSearch suggestionSearch = null;           //模糊搜索模块
     private RoutePlanSearch routePlanSearch;
-    private LatLng terminalStation;
+    private static LatLng terminalStation;
     private WalkNavigateHelper walkNavigateHelper = WalkNavigateHelper.getInstance();
-
+    public static WalkingRouteLine walkingRouteLine;
     private final static double MIN_D = 0.000001f;
-    private final static double MAX_MIN_D = 30;
+    private final static double MAX_MIN_D = 3;
+    private static boolean isWalkGuidering = false;
     int nodeIndex = -1; // 节点索引,供浏览节点时使用
     // 浏览路线节点相关
     Button mBtnPre = null; // 上一个节点
@@ -79,6 +80,7 @@ public class MainActivity extends Activity {
     private static final String APP_FOLDER_NAME = "eldguider";    //app在SD卡中的目录名
     private String mSDCardPath = null;
 
+    private static int deviateCount = 0;    //记录偏离导航次数
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -211,76 +213,10 @@ public class MainActivity extends Activity {
                 nodeIndex = -1;
                 baiduMap.clear();
                 MyWalkingRouteOverlay overlay = new MyWalkingRouteOverlay(baiduMap);
-                WalkingRouteLine walkingRouteLine = result.getRouteLines().get(0);
+                walkingRouteLine = result.getRouteLines().get(0);
                 overlay.setData(walkingRouteLine);
                 overlay.addToMap();
                 overlay.zoomToSpan();
-                isDeviate(walkingRouteLine);
-            }
-        }
-
-        private boolean isDeviate(WalkingRouteLine walkingRouteLine) {
-            List<WalkingRouteLine.WalkingStep> walkingSteps = walkingRouteLine.getAllStep();
-            double MIN = 5000f;
-            for (WalkingRouteLine.WalkingStep step : walkingSteps) {
-                double distance = getDistance(step);
-                MIN = MIN < distance ? MIN : distance;
-                Log.i("distance", "" + distance);
-            }
-            if (Math.abs(MIN - MAX_MIN_D) < MIN_D) {
-                Log.i("warning", "偏离路线");
-                return true;
-            }
-            return false;
-        }
-
-        private double getDistance(WalkingRouteLine.WalkingStep step) {
-            LatLng entrance = step.getEntrance().getLocation();
-            LatLng exit = step.getExit().getLocation();
-            if (Math.abs(entrance.latitude - exit.latitude) < MIN_D) {
-                LatLng point = new LatLng(entrance.latitude, currentLocation.getLongitude());
-                return DistanceUtil.getDistance(point, new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
-            }
-            if (Math.abs(entrance.longitude - exit.longitude) < MIN_D) {
-                LatLng point = new LatLng(entrance.longitude, currentLocation.getLatitude());
-                return DistanceUtil.getDistance(point, new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
-            }
-            double X1 = entrance.longitude;
-            double Y1 = entrance.latitude;
-            double X2 = exit.longitude;
-            double Y2 = exit.latitude;
-            double X0 = currentLocation.getLongitude();
-            double Y0 = currentLocation.getLatitude();
-            double A = Y2 - Y1;
-            double B = X1 - X2;
-            double C = X2 * Y1 - X1 * Y2;
-            double x = (B * B * X0 - A * B * Y0 - A * C) / (A * A + B * B);
-            double y = -(A * x + C) / B;
-            if (x < 0 || y < 0)
-                return 0.0f;
-            return DistanceUtil.getDistance(new LatLng(y, x), new LatLng(Y0, X0));
-        }
-
-        private class MyWalkingRouteOverlay extends WalkingRouteOverlay {
-
-            public MyWalkingRouteOverlay(BaiduMap baiduMap) {
-                super(baiduMap);
-            }
-
-            @Override
-            public BitmapDescriptor getStartMarker() {
-                if (true) {
-                    return BitmapDescriptorFactory.fromResource(R.drawable.icon_st);
-                }
-                return null;
-            }
-
-            @Override
-            public BitmapDescriptor getTerminalMarker() {
-                if (true) {
-                    return BitmapDescriptorFactory.fromResource(R.drawable.icon_en);
-                }
-                return null;
             }
         }
 
@@ -310,6 +246,89 @@ public class MainActivity extends Activity {
         }
     }
 
+    // 自定义步行路线图层
+    private class MyWalkingRouteOverlay extends WalkingRouteOverlay {
+
+        public MyWalkingRouteOverlay(BaiduMap baiduMap) {
+            super(baiduMap);
+        }
+
+        @Override
+        public BitmapDescriptor getStartMarker() {
+            if (true) {
+                return BitmapDescriptorFactory.fromResource(R.drawable.icon_st);
+            }
+            return null;
+        }
+
+        @Override
+        public BitmapDescriptor getTerminalMarker() {
+            if (true) {
+                return BitmapDescriptorFactory.fromResource(R.drawable.icon_en);
+            }
+            return null;
+        }
+    }
+
+    /**
+     * 判断是否偏离航线
+     *
+     * @param walkingRouteLine 航线
+     * @param latLng           位置坐标
+     * @return true 是  flse 否
+     */
+    private boolean isDeviate(WalkingRouteLine walkingRouteLine, LatLng latLng) {
+        if (walkingRouteLine == null || latLng == null)
+            return false;
+        List<WalkingRouteLine.WalkingStep> walkingSteps = walkingRouteLine.getAllStep();
+        double MIN = 5000f;
+        for (WalkingRouteLine.WalkingStep step : walkingSteps) {
+            double distance = getDistance(step, latLng);
+            MIN = MIN < distance ? MIN : distance;
+            //Log.i("distance", "" + distance);
+        }
+        Log.i("distance", "Min:" + MIN);
+        if (MIN > MAX_MIN_D) {
+            Log.i("warning", "偏离路线");
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 计算当前位置到步行路段的距离
+     *
+     * @param step
+     * @param latLng
+     * @return
+     */
+    private double getDistance(WalkingRouteLine.WalkingStep step, LatLng latLng) {
+        LatLng entrance = step.getEntrance().getLocation();
+        LatLng exit = step.getExit().getLocation();
+        if (Math.abs(entrance.latitude - exit.latitude) < MIN_D) {
+            LatLng point = new LatLng(entrance.latitude, latLng.longitude);
+            return DistanceUtil.getDistance(point, new LatLng(latLng.latitude, latLng.longitude));
+        }
+        if (Math.abs(entrance.longitude - exit.longitude) < MIN_D) {
+            LatLng point = new LatLng(entrance.longitude, latLng.latitude);
+            return DistanceUtil.getDistance(point, new LatLng(latLng.latitude, latLng.longitude));
+        }
+        double X1 = entrance.longitude;
+        double Y1 = entrance.latitude;
+        double X2 = exit.longitude;
+        double Y2 = exit.latitude;
+        double X0 = latLng.longitude;
+        double Y0 = latLng.latitude;
+        double A = Y2 - Y1;
+        double B = X1 - X2;
+        double C = X2 * Y1 - X1 * Y2;
+        double x = (B * B * X0 - A * B * Y0 - A * C) / (A * A + B * B);
+        double y = -(A * x + C) / B;
+        if (x < 0 || y < 0)
+            return 0.0f;
+        return DistanceUtil.getDistance(new LatLng(y, x), new LatLng(Y0, X0));
+    }
+
     // 模糊搜索监听器
     private class SuggestionResultListener implements OnGetSuggestionResultListener {
         @Override
@@ -332,6 +351,7 @@ public class MainActivity extends Activity {
                     //poiSearch.searchPoiDetail(new PoiDetailSearchOption().poiUid(info.uid));
                     PlanNode from = PlanNode.withLocation(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
                     PlanNode to = PlanNode.withLocation(info.pt);
+                    terminalStation = info.pt;
                     routePlanSearch.walkingSearch(new WalkingRoutePlanOption().from(from).to(to));
                     Log.i("POI", info.uid);
                 }
@@ -500,7 +520,11 @@ public class MainActivity extends Activity {
         // 偏航规划中
         @Override
         public void onRoutePlanYawing(CharSequence charSequence, Drawable drawable) {
-
+            Log.i("route", "偏离导航");
+            deviateCount++;
+            if (deviateCount > 2) {
+                //发短信 警告处理
+            }
         }
 
         @Override
@@ -515,19 +539,21 @@ public class MainActivity extends Activity {
 
         @Override
         public void onFinalEnd(Message message) {
-
+            Log.i("route", "导航结束");
+            isWalkGuidering = false;
         }
 
         @Override
         public void onVibrate() {
             Log.i("Route", "振动");
-
         }
 
         // 重新规划完成
         @Override
         public void onReRouteComplete() {
-
+            Log.i("route", "重新规划完成");
+            isWalkGuidering = true;
+            deviateCount = 0;
         }
     }
 
@@ -588,21 +614,23 @@ public class MainActivity extends Activity {
         mySensorEventListener.start();
     }
 
+    private void startWalkGuider(final LatLng start, final LatLng end) {
+        //引擎初始化成功的回调
+        WalkRouteNodeInfo startWalkRouteNodeInfo = new WalkRouteNodeInfo();
+        startWalkRouteNodeInfo.setLocation(start);
+        WalkRouteNodeInfo endWalkRouteNodeInfo = new WalkRouteNodeInfo();
+        endWalkRouteNodeInfo.setLocation(end);
+        WalkNaviLaunchParam walkNaviLaunchParam = new WalkNaviLaunchParam();
+        walkNaviLaunchParam.startNodeInfo(startWalkRouteNodeInfo);
+        walkNaviLaunchParam.endNodeInfo(endWalkRouteNodeInfo);
+        walkNaviLaunchParam.extraNaviMode(0);
+        startWalkGuide(walkNaviLaunchParam);
+    }
 
-    private void startWalkGuide() {
+    private void startWalkGuide(final WalkNaviLaunchParam walkNaviLaunchParam) {
         WalkNavigateHelper.getInstance().initNaviEngine(this, new IWEngineInitListener() {
-
             @Override
             public void engineInitSuccess() {
-                //引擎初始化成功的回调
-                WalkRouteNodeInfo startWalkRouteNodeInfo = new WalkRouteNodeInfo();
-                startWalkRouteNodeInfo.setLocation(myLocation);
-                WalkRouteNodeInfo endWalkRouteNodeInfo = new WalkRouteNodeInfo();
-                endWalkRouteNodeInfo.setLocation(terminalStation);
-                WalkNaviLaunchParam walkNaviLaunchParam = new WalkNaviLaunchParam();
-                walkNaviLaunchParam.startNodeInfo(startWalkRouteNodeInfo);
-                walkNaviLaunchParam.endNodeInfo(endWalkRouteNodeInfo);
-                walkNaviLaunchParam.extraNaviMode(0);
                 routePlan(walkNaviLaunchParam);
             }
 
@@ -624,6 +652,8 @@ public class MainActivity extends Activity {
 
             @Override
             public void onRoutePlanSuccess() {
+                isWalkGuidering = true;
+                deviateCount = 0;
                 //算路成功
                 //跳转至诱导页面
                 Intent intent = new Intent(MainActivity.this, WNaviGuideActivity.class);
@@ -646,7 +676,7 @@ public class MainActivity extends Activity {
                 Toast.makeText(MainActivity.this, "请先输入目的地", Toast.LENGTH_LONG);
                 return;
             }
-            startWalkGuide();
+            //startWalkGuide();
         }
     }
 
@@ -711,12 +741,9 @@ public class MainActivity extends Activity {
         @Override
         public void onReceiveLocation(BDLocation location) {
             Log.i("location", lastX + "");
-
-            // map view 销毁后不在处理新接收的位置
             if (location == null || mapView == null) {
                 return;
             }
-            //Toast.makeText(MainActivity.this, "定位结果编码："+location.getLocType(), Toast.LENGTH_LONG).show();
             MyLocationData locData = new MyLocationData.Builder()
                     .accuracy(location.getRadius())
                     // 此处设置开发者获取到的方向信息，顺时针0-360
@@ -724,16 +751,25 @@ public class MainActivity extends Activity {
                     .latitude(location.getLatitude())
                     .longitude(location.getLongitude()).build();
             baiduMap.setMyLocationData(locData);
+            myLocation = new LatLng(location.getLatitude(),
+                    location.getLongitude());
+            currentLocation = location;
             if (isFirstLoc) {
                 isFirstLoc = false;
-                //city.setText(location.getCity());
-                myLocation = new LatLng(location.getLatitude(),
-                        location.getLongitude());
-                currentLocation = location;
-
                 MapStatus.Builder builder = new MapStatus.Builder();
                 builder.target(myLocation).zoom(18.0f);
                 baiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+            }
+            // 如果偏离导航
+            if (isDeviate(walkingRouteLine, myLocation)) {
+                deviateCount++;
+                Log.i("distance", "偏离次数：" + deviateCount);
+                // 偏离次数达到3次
+                if (deviateCount > 2 && !isWalkGuidering) {
+                    // 发起导航
+                    Log.i("distance", "开始导航");
+                    startWalkGuider(myLocation, terminalStation);
+                }
             }
         }
     }
