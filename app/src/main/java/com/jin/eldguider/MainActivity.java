@@ -51,6 +51,8 @@ public class MainActivity extends Activity {
     private Button startWalkGuideBtn;                           //开始导航按钮
     private MapView mapView;                                    //百度地图控件
     private AutoCompleteTextView autoCompleteTextView;          //自动提示输入控件
+    private Button distanceBtn;
+    private Button deviateCountBtn;
     /*
      *   百度地图相关
      * */
@@ -60,6 +62,7 @@ public class MainActivity extends Activity {
     private RoutePlanSearch routePlanSearch;                    //路径规划模块
     private WalkNavigateHelper walkNavigateHelper;              //步行导航模块
     private LocationClient locationClient;                      //位置定位模块
+    private final int hz = 5;
     /*
      * 其他变量
      * */
@@ -73,18 +76,18 @@ public class MainActivity extends Activity {
     private static LatLng terminalStation;                      //终点信息
     public static WalkingRouteLine walkingRouteLine;            //步行规划路径
     private final static double MIN_D = 0.000001f;              //浮点型数据是否相等的误差
-    private final static double MAX_MIN_D = 30;                 //是否偏离导航的距离阈值
+    private final static int MAX_MIN_D = 30;                    //是否偏离导航的距离阈值
     private static boolean isWalkGuidering = false;             //是否已进入导航模式,防止重复进入
     int nodeIndex = -1; // 节点索引,供浏览节点时使用
     private static final String[] authBaseArr =                 //需要动态申请的权限
             {
-            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            Manifest.permission.ACCESS_FINE_LOCATION
-    };
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+            };
     private static final String APP_FOLDER_NAME = "eldguider";    //app在SD卡中的目录名
     private String mSDCardPath = null;                            //app在SD卡中的路径
-    private static int deviateCount = 0;                          //记录偏离导航次数
-
+    private volatile static int deviateCount = 0;                 //记录偏离导航次数
+    private final static int MAX_DEVIATE_COUNT = 3;               //偏离导航次数阈值
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -103,6 +106,8 @@ public class MainActivity extends Activity {
         startWalkGuideBtn = (Button) findViewById(R.id.startWalkGuideBtn);
         startWalkGuideBtn.setOnClickListener(new BtnClickListener());
         mapView = (MapView) findViewById(R.id.bmapView);
+        distanceBtn = (Button) findViewById(R.id.distanceBtn);
+        deviateCountBtn = (Button) findViewById(R.id.deviateCountBtn);
 
         //关键字输入view
         autoCompleteTextView = (AutoCompleteTextView) findViewById(R.id.autoCompleteTextView);
@@ -135,7 +140,7 @@ public class MainActivity extends Activity {
         // 设置坐标类型,国测局经纬度坐标系:gcj02;  百度墨卡托坐标系:bd09;  百度经纬度坐标系:bd09ll
         option.setCoorType("bd09ll");
         //定位请求时间间隔 1秒
-        option.setScanSpan(1001);
+        option.setScanSpan(hz * 1000);
         option.setLocationNotify(true);
         //设备方向
         option.setNeedDeviceDirect(true);
@@ -292,6 +297,8 @@ public class MainActivity extends Activity {
             //Log.i("distance", "" + distance);
         }
         Log.i("distance", "Min:" + MIN);
+        //startWalkGuideBtn.setText(MIN + "m");
+        distanceBtn.setText(String.format("%.1f", MIN) + "|" + MAX_MIN_D);
         if (MIN > MAX_MIN_D) {
             Log.i("warning", "偏离路线");
             return true;
@@ -768,8 +775,10 @@ public class MainActivity extends Activity {
             if (isDeviate(walkingRouteLine, myLocation)) {
                 deviateCount++;
                 Log.i("distance", "偏离次数：" + deviateCount);
+                deviateCountBtn.setText(deviateCount + "|" + MAX_DEVIATE_COUNT);
+                Toast.makeText(MainActivity.this, "您已偏离路线" + deviateCount + "次", Toast.LENGTH_LONG).show();
                 // 偏离次数达到3次
-                if (deviateCount > 2 && !isWalkGuidering) {
+                if (deviateCount >= MAX_DEVIATE_COUNT && !isWalkGuidering) {
                     // 发起导航
                     Log.i("distance", "开始导航");
                     startWalkGuider(myLocation, terminalStation);
