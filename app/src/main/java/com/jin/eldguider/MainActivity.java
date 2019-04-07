@@ -76,8 +76,8 @@ public class MainActivity extends Activity {
     private static LatLng terminalStation;                      //终点信息
     public static WalkingRouteLine walkingRouteLine;            //步行规划路径
     private final static double MIN_D = 0.000001f;              //浮点型数据是否相等的误差
-    private final static int MAX_MIN_D = 30;                    //是否偏离导航的距离阈值
-    private static boolean isWalkGuidering = false;             //是否已进入导航模式,防止重复进入
+    private final static int MAX_MIN_D = 2;                    //是否偏离导航的距离阈值
+    private volatile static boolean isWalkGuidering = false;             //是否已进入导航模式,防止重复进入
     int nodeIndex = -1; // 节点索引,供浏览节点时使用
     private static final String[] authBaseArr =                 //需要动态申请的权限
             {
@@ -533,8 +533,19 @@ public class MainActivity extends Activity {
         public void onRoutePlanYawing(CharSequence charSequence, Drawable drawable) {
             Log.i("route", "偏离导航");
             deviateCount++;
-            if (deviateCount > 2) {
+            if (deviateCount > MAX_DEVIATE_COUNT) {
                 //发短信 警告处理
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setTitle("短信警告");
+                builder.setMessage("您已偏离导航3次");
+                builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        deviateCount = 0;
+                        dialog.dismiss();
+                    }
+                });
+                builder.create().show();
             }
         }
 
@@ -776,7 +787,8 @@ public class MainActivity extends Activity {
                 deviateCount++;
                 Log.i("distance", "偏离次数：" + deviateCount);
                 deviateCountBtn.setText(deviateCount + "|" + MAX_DEVIATE_COUNT);
-                Toast.makeText(MainActivity.this, "您已偏离路线" + deviateCount + "次", Toast.LENGTH_LONG).show();
+                if (!isWalkGuidering)
+                    Toast.makeText(MainActivity.this, "您已偏离路线" + deviateCount + "次", Toast.LENGTH_LONG).show();
                 // 偏离次数达到3次
                 if (deviateCount >= MAX_DEVIATE_COUNT && !isWalkGuidering) {
                     // 发起导航

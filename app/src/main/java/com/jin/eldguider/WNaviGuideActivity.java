@@ -4,6 +4,8 @@
 package com.jin.eldguider;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -22,9 +24,11 @@ import com.baidu.platform.comapi.walknavi.widget.ArCameraView;
 
 public class WNaviGuideActivity extends Activity {
 
-    private final static String TAG = WNaviGuideActivity.class.getSimpleName();
+    private final static String TAG = "walkingguide";
 
     private WalkNavigateHelper mNaviHelper;
+
+    private volatile static int deviateCount = 0;
 
     @Override
     protected void onDestroy() {
@@ -122,7 +126,20 @@ public class WNaviGuideActivity extends Activity {
             @Override
             public void onRouteFarAway(CharSequence charSequence, Drawable drawable) {
                 Log.d(TAG, "onRouteFarAway: charSequence = :" + charSequence);
-
+                deviateCount++;
+                if (deviateCount >= 3) {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(WNaviGuideActivity.this);
+                    builder.setTitle("短信警告");
+                    builder.setMessage("您已偏离导航3次");
+                    builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            deviateCount = 0;
+                            dialog.dismiss();
+                        }
+                    });
+                    builder.create().show();
+                }
             }
 
             @Override
@@ -133,7 +150,7 @@ public class WNaviGuideActivity extends Activity {
 
             @Override
             public void onReRouteComplete() {
-
+                deviateCount = 0;
             }
 
             @Override
@@ -148,7 +165,7 @@ public class WNaviGuideActivity extends Activity {
 
             @Override
             public void onFinalEnd(Message msg) {
-
+                deviateCount = 0;
             }
 
             @Override
