@@ -51,8 +51,9 @@ public class MainActivity extends Activity {
     private Button startWalkGuideBtn;                           //开始导航按钮
     private MapView mapView;                                    //百度地图控件
     private AutoCompleteTextView autoCompleteTextView;          //自动提示输入控件
-    private Button distanceBtn;
-    private Button deviateCountBtn;
+    private Button distanceBtn;                                 //显示偏离距离
+    private Button deviateCountBtn;                             //显示偏离次数
+    private Button settingBtn;                                  //设置按钮
     /*
      *   百度地图相关
      * */
@@ -62,7 +63,7 @@ public class MainActivity extends Activity {
     private RoutePlanSearch routePlanSearch;                    //路径规划模块
     private WalkNavigateHelper walkNavigateHelper;              //步行导航模块
     private LocationClient locationClient;                      //位置定位模块
-    private final int hz = 5;
+    private final int hz = 1;                                   //定位频率
     /*
      * 其他变量
      * */
@@ -76,9 +77,9 @@ public class MainActivity extends Activity {
     private static LatLng terminalStation;                      //终点信息
     public static WalkingRouteLine walkingRouteLine;            //步行规划路径
     private final static double MIN_D = 0.000001f;              //浮点型数据是否相等的误差
-    private final static int MAX_MIN_D = 2;                    //是否偏离导航的距离阈值
-    private volatile static boolean isWalkGuidering = false;             //是否已进入导航模式,防止重复进入
-    int nodeIndex = -1; // 节点索引,供浏览节点时使用
+    private final static int MAX_MIN_D = 30;                    //是否偏离导航的距离阈值
+    private volatile static boolean isWalkGuidering = false;    //是否已进入导航模式,防止重复进入
+    int nodeIndex = -1;                                         // 节点索引,供浏览节点时使用
     private static final String[] authBaseArr =                 //需要动态申请的权限
             {
                     Manifest.permission.WRITE_EXTERNAL_STORAGE,
@@ -158,7 +159,7 @@ public class MainActivity extends Activity {
                 .setMyLocationConfiguration(new MyLocationConfiguration(
                         MyLocationConfiguration.LocationMode.NORMAL, true, null));
         walkNavigateHelper = WalkNavigateHelper.getInstance();
-        walkNavigateHelper.setRouteGuidanceListener(this, new WRouteGuidanceListener());
+        //walkNavigateHelper.setRouteGuidanceListener(this, new WRouteGuidanceListener());
 
         //POI搜索模块
         poiSearch = PoiSearch.newInstance();
