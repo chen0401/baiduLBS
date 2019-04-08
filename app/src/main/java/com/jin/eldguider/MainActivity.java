@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
     private RoutePlanSearch routePlanSearch;                    //路径规划模块
     private WalkNavigateHelper walkNavigateHelper;              //步行导航模块
     private LocationClient locationClient;                      //位置定位模块
-    private final int hz = 1;                                   //定位频率
+    private final int hz = 5;                                   //定位频率
     /*
      * 其他变量
      * */
@@ -77,7 +77,7 @@ public class MainActivity extends Activity {
     private static LatLng terminalStation;                      //终点信息
     public static WalkingRouteLine walkingRouteLine;            //步行规划路径
     private final static double MIN_D = 0.000001f;              //浮点型数据是否相等的误差
-    private final static int MAX_MIN_D = 30;                    //是否偏离导航的距离阈值
+    private final static int MAX_MIN_D = -1;                    //是否偏离导航的距离阈值
     private volatile static boolean isWalkGuidering = false;    //是否已进入导航模式,防止重复进入
     int nodeIndex = -1;                                         // 节点索引,供浏览节点时使用
     private static final String[] authBaseArr =                 //需要动态申请的权限

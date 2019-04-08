@@ -84,6 +84,7 @@ public class WNaviGuideActivity extends Activity {
             @Override
             public void onWalkNaviModeChange(int mode, WalkNaviModeSwitchListener listener) {
                 Log.d(TAG, "onWalkNaviModeChange : " + mode);
+                showWarning();
                 mNaviHelper.switchWalkNaviMode(WNaviGuideActivity.this, mode, listener);
             }
 
@@ -142,17 +143,7 @@ public class WNaviGuideActivity extends Activity {
                 Log.d(TAG, "onRouteFarAway: charSequence = :" + charSequence);
                 deviateCount++;
                 Log.d(TAG, "deviateCount = " + deviateCount);
-
-                final Button button = new Button(WNaviGuideActivity.this);
-                button.setText("您已偏离导航3次。(模拟短信)");
-
-                button.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        button.setVisibility(View.INVISIBLE);
-                    }
-                });
-                ((FrameLayout) view).addView(button);
+                showWarning();
 
                 /*if (deviateCount >= 3) {
                     AlertDialog.Builder builder = new AlertDialog.Builder(WNaviGuideActivity.this);
@@ -202,6 +193,18 @@ public class WNaviGuideActivity extends Activity {
         });
     }
 
+    private void showWarning() {
+        final Button button = new Button(WNaviGuideActivity.this);
+        button.setText("您已偏离导航3次。(模拟短信)");
+
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                button.setVisibility(View.INVISIBLE);
+            }
+        });
+        ((FrameLayout) view).addView(button);
+    }
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
