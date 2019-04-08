@@ -98,7 +98,7 @@ public class WNaviGuideActivity extends Activity {
             @Override
             public int playTTSText(final String s, boolean b) {
                 Log.d(TAG, "tts: " + s);
-                voice(s);
+                //voice(s);
                 return 0;
             }
         });
