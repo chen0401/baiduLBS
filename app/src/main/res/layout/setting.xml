@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/dialog"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:background="#87CEFA"
+              android:orientation="vertical">
+    <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+        <TextView
+                android:id="@+id/tvname"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="偏离航线距离阈值："/>
+
+        <EditText
+                android:id="@+id/distanceThresholdEditText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="100dip" android:inputType="numberSigned"/>
+    </LinearLayout>
+    <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+        <TextView
+                android:id="@+id/tvname"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="偏离导航次数阈值："/>
+
+        <EditText
+                android:id="@+id/deviateCountThresholdEditText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="100dip" android:inputType="number"/>
+    </LinearLayout>
+
+</LinearLayout>

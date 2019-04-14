@@ -28,28 +28,57 @@
                 android:id="@+id/bmapView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:clickable="true" android:layout_weight="1"/>
+                android:clickable="true" android:layout_weight="1" android:layout_margin="1dip"/>
         <LinearLayout
                 android:orientation="vertical"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_alignParentStart="true"
                 android:layout_marginStart="20dp" android:layout_alignParentBottom="true"
-                android:paddingBottom="80dp">
+                android:paddingBottom="100dp" android:gravity="center_horizontal">
+            <TableLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent" android:background="@android:color/background_dark">
+
+                <TableRow android:layout_width="match_parent" android:layout_height="match_parent"
+                          android:layout_margin="1dip" android:gravity="center">
+                    <TextView
+                            android:text="20.0"
+                            android:layout_width="16pt"
+                            android:layout_height="wrap_content" android:id="@+id/distanceView" android:textSize="14sp"
+                            android:layout_marginRight="2dip" android:background="@android:color/darker_gray"
+                            android:saveEnabled="true" android:gravity="center"/>
+                    <TextView
+                            android:text="30"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" android:id="@+id/distanceTView" android:textSize="14sp"
+                            android:background="@android:color/background_light"
+                            android:gravity="center"/>
+                </TableRow>
+                <TableRow android:layout_width="match_parent" android:layout_height="match_parent"
+                          android:layout_margin="1dip">
+                    <TextView
+                            android:text="10"
+                            android:layout_width="16pt"
+                            android:layout_height="wrap_content" android:id="@+id/deviateCountView"
+                            android:textSize="14sp"
+                            android:layout_marginRight="2dip" android:background="@android:color/darker_gray"
+                            android:saveEnabled="true" android:gravity="center"/>
+                    <TextView
+                            android:text="10"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" android:id="@+id/deviateCountTView"
+                            android:textSize="14sp"
+                            android:background="@android:color/background_light" android:saveEnabled="true"
+                            android:gravity="center"/>
+                </TableRow>
+            </TableLayout>
             <Button
-                    android:text="0.0|30"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp" android:id="@+id/distanceBtn"
-                    android:layout_alignStart="@+id/deviateCountBtn" android:enabled="false" android:textSize="10sp"/>
-            <Button
-                    android:text="0|3"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp" android:id="@+id/deviateCountBtn"
+                    android:text=""
+                    android:layout_width="24dp"
+                    android:layout_height="24dp" android:id="@+id/settingBtn"
                     android:layout_alignParentStart="true"
-                    android:layout_alignParentBottom="false" android:enabled="false" android:textSize="10sp"/>
-            <Button
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content" android:id="@+id/button3"
-                    android:background="@android:drawable/ic_menu_preferences"/>
+                    android:layout_alignParentBottom="false" android:textSize="10sp"
+                    android:background="@android:drawable/ic_menu_edit" android:layout_marginTop="4dip"/>
         </LinearLayout>
     </RelativeLayout>
 

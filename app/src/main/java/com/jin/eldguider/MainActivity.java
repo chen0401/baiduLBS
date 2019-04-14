@@ -13,6 +13,7 @@ import android.os.Message;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.*;
 import com.baidu.location.BDAbstractLocationListener;
@@ -51,9 +52,11 @@ public class MainActivity extends Activity {
     private Button startWalkGuideBtn;                           //开始导航按钮
     private MapView mapView;                                    //百度地图控件
     private AutoCompleteTextView autoCompleteTextView;          //自动提示输入控件
-    private Button distanceBtn;                                 //显示偏离距离
-    private Button deviateCountBtn;                             //显示偏离次数
-    private Button settingBtn;                                  //设置按钮
+    private Button settingButn;
+    private TextView distanceView;
+    private TextView distanceTView;
+    private TextView deviateCountView;
+    private TextView deviateCountTView;
     /*
      *   百度地图相关
      * */
@@ -77,7 +80,7 @@ public class MainActivity extends Activity {
     private static LatLng terminalStation;                      //终点信息
     public static WalkingRouteLine walkingRouteLine;            //步行规划路径
     private final static double MIN_D = 0.000001f;              //浮点型数据是否相等的误差
-    private final static int MAX_MIN_D = -1;                    //是否偏离导航的距离阈值
+    private static int MAX_MIN_D = -1;                    //是否偏离导航的距离阈值
     private volatile static boolean isWalkGuidering = false;    //是否已进入导航模式,防止重复进入
     int nodeIndex = -1;                                         // 节点索引,供浏览节点时使用
     private static final String[] authBaseArr =                 //需要动态申请的权限
@@ -88,7 +91,12 @@ public class MainActivity extends Activity {
     private static final String APP_FOLDER_NAME = "eldguider";    //app在SD卡中的目录名
     private String mSDCardPath = null;                            //app在SD卡中的路径
     private volatile static int deviateCount = 0;                 //记录偏离导航次数
-    private final static int MAX_DEVIATE_COUNT = 3;               //偏离导航次数阈值
+    private static int MAX_DEVIATE_COUNT = 3;               //偏离导航次数阈值
+
+    //系统相关
+    private final String ACTIVITY_TAG = "activity_status";
+    private boolean onPause = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -107,9 +115,16 @@ public class MainActivity extends Activity {
         startWalkGuideBtn = (Button) findViewById(R.id.startWalkGuideBtn);
         startWalkGuideBtn.setOnClickListener(new BtnClickListener());
         mapView = (MapView) findViewById(R.id.bmapView);
-        distanceBtn = (Button) findViewById(R.id.distanceBtn);
-        deviateCountBtn = (Button) findViewById(R.id.deviateCountBtn);
-
+        settingButn = (Button) findViewById(R.id.settingBtn);
+        settingButn.setOnClickListener(new BtnClickListener());
+        distanceView = (TextView) findViewById(R.id.distanceView);
+        distanceTView = (TextView) findViewById(R.id.distanceTView);
+        distanceView.setText("0");
+        distanceTView.setText(MAX_MIN_D + "");
+        deviateCountView = (TextView) findViewById(R.id.deviateCountView);
+        deviateCountTView = (TextView) findViewById(R.id.deviateCountTView);
+        deviateCountView.setText("0");
+        deviateCountTView.setText(MAX_DEVIATE_COUNT + "");
         //关键字输入view
         autoCompleteTextView = (AutoCompleteTextView) findViewById(R.id.autoCompleteTextView);
         //增加监听：text change listener
@@ -299,7 +314,7 @@ public class MainActivity extends Activity {
         }
         Log.i("distance", "Min:" + MIN);
         //startWalkGuideBtn.setText(MIN + "m");
-        distanceBtn.setText(String.format("%.1f", MIN) + "|" + MAX_MIN_D);
+        distanceView.setText(String.format("%.1f", MIN));
         if (MIN > MAX_MIN_D) {
             Log.i("warning", "偏离路线");
             return true;
@@ -365,6 +380,10 @@ public class MainActivity extends Activity {
                     PlanNode to = PlanNode.withLocation(info.pt);
                     terminalStation = info.pt;
                     routePlanSearch.walkingSearch(new WalkingRoutePlanOption().from(from).to(to));
+                    deviateCount = 0;
+                    deviateCountView.setText("0");
+                    distanceView.setText("0");
+
                     Log.i("POI", info.uid);
                 }
             });
@@ -414,7 +433,6 @@ public class MainActivity extends Activity {
 
         @Override
         public void onGetPoiDetailResult(PoiDetailSearchResult poiDetailSearchResult) {
-            Log.i("POI", "wwwww");
             if (poiDetailSearchResult == null
                     || poiDetailSearchResult.error == SearchResult.ERRORNO.RESULT_NOT_FOUND) {
                 Toast.makeText(MainActivity.this, "未找到结果", Toast.LENGTH_LONG)
@@ -691,16 +709,58 @@ public class MainActivity extends Activity {
         });
     }
 
+    // 按钮点击监听器
     private class BtnClickListener implements View.OnClickListener {
         @Override
         public void onClick(View v) {
-            //authWithKey();
-            if (terminalStation == null) {
-                Toast.makeText(MainActivity.this, "请先输入目的地", Toast.LENGTH_LONG);
-                return;
+            switch (v.getId()) {
+                case R.id.startWalkGuideBtn:
+                    //authWithKey();
+                    if (terminalStation == null) {
+                        Toast.makeText(MainActivity.this, "请先输入目的地", Toast.LENGTH_LONG);
+                        return;
+                    }
+                    //startWalkGuide();
+                    break;
+                case R.id.settingBtn:
+                    setting();
             }
-            //startWalkGuide();
+
         }
+    }
+
+    private void setting() {
+        View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.setting, null);
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setIcon(R.drawable.icon_st);
+        builder.setTitle("参数设置");
+        builder.setView(view);
+        final EditText editText = (EditText) view.findViewById(R.id.distanceThresholdEditText);
+        final EditText editText1 = (EditText) view.findViewById(R.id.deviateCountThresholdEditText);
+        editText.setText(MAX_MIN_D + "");
+        editText1.setText(MAX_DEVIATE_COUNT + "");
+        builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String d = editText.getText().toString().trim();
+                String c = editText1.getText().toString().trim();
+                if (d.isEmpty() || c.isEmpty()) {
+                    Toast.makeText(MainActivity.this, "参数设置错误。", Toast.LENGTH_SHORT).show();
+                } else {
+                    MAX_MIN_D = Integer.valueOf(d).intValue();
+                    MAX_DEVIATE_COUNT = Integer.valueOf(c).intValue();
+                    distanceTView.setText(MAX_MIN_D + "");
+                    deviateCountTView.setText(MAX_DEVIATE_COUNT + "");
+                }
+            }
+        });
+        builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+
+            }
+        });
+        builder.show();
     }
 
     @Override
@@ -709,6 +769,8 @@ public class MainActivity extends Activity {
         //在activity执行onResume时执行mMapView. onResume ()，实现地图生命周期管理
         if (mapView != null)
             mapView.onResume();
+        Log.i(ACTIVITY_TAG, "resume");
+        reset();
     }
 
     @Override
@@ -717,6 +779,9 @@ public class MainActivity extends Activity {
         //在activity执行onPause时执行mMapView. onPause ()，实现地图生命周期管理
         if (mapView != null)
             mapView.onPause();
+        Log.i(ACTIVITY_TAG, "pause");
+        onPause = true;
+
     }
 
     @Override
@@ -725,6 +790,13 @@ public class MainActivity extends Activity {
         //在activity执行onDestroy时执行mMapView.onDestroy()，实现地图生命周期管理
         if (mapView != null)
             mapView.onDestroy();
+        Log.i(ACTIVITY_TAG, "destroy");
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        Log.i(ACTIVITY_TAG, "start");
     }
 
     private String getSdcardDir() {
@@ -783,20 +855,27 @@ public class MainActivity extends Activity {
                 builder.target(myLocation).zoom(18.0f);
                 baiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
             }
-            // 如果偏离导航
-            if (isDeviate(walkingRouteLine, myLocation)) {
+            // 如果偏离导航 && 当前activity处于运行状态
+            if (isDeviate(walkingRouteLine, myLocation) && !onPause) {
                 deviateCount++;
                 Log.i("distance", "偏离次数：" + deviateCount);
-                deviateCountBtn.setText(deviateCount + "|" + MAX_DEVIATE_COUNT);
-                if (!isWalkGuidering)
-                    Toast.makeText(MainActivity.this, "您已偏离路线" + deviateCount + "次", Toast.LENGTH_LONG).show();
+                deviateCountView.setText(deviateCount + "");
+                Toast.makeText(MainActivity.this, "您已偏离路线" + deviateCount + "次", Toast.LENGTH_LONG).show();
                 // 偏离次数达到3次
-                if (deviateCount >= MAX_DEVIATE_COUNT && !isWalkGuidering) {
+                if (deviateCount >= MAX_DEVIATE_COUNT) {
                     // 发起导航
                     Log.i("distance", "开始导航");
                     startWalkGuider(myLocation, terminalStation);
                 }
             }
         }
+    }
+
+    // 重置
+    private void reset() {
+        // 偏离次数置为0
+        deviateCount = 0;
+        // 重置activity状态
+        onPause = false;
     }
 }

@@ -4,14 +4,15 @@
 package com.jin.eldguider;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Message;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Button;
-import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import com.baidu.mapapi.walknavi.WalkNavigateHelper;
 import com.baidu.mapapi.walknavi.adapter.IWNaviStatusListener;
@@ -46,6 +47,7 @@ public class WNaviGuideActivity extends Activity {
     private final static String BAIDU_VOICE_URL = "https://tsn.baidu.com/text2audio?";
     private final static String APP_ID = "15964912";
     private final static String APP_KEY = "";
+    private boolean first = true;
 
     @Override
     protected void onDestroy() {
@@ -84,7 +86,9 @@ public class WNaviGuideActivity extends Activity {
             @Override
             public void onWalkNaviModeChange(int mode, WalkNaviModeSwitchListener listener) {
                 Log.d(TAG, "onWalkNaviModeChange : " + mode);
-                showWarning();
+                if (!first) {
+                    showWarning();
+                } else first = false;
                 mNaviHelper.switchWalkNaviMode(WNaviGuideActivity.this, mode, listener);
             }
 
@@ -144,20 +148,10 @@ public class WNaviGuideActivity extends Activity {
                 deviateCount++;
                 Log.d(TAG, "deviateCount = " + deviateCount);
                 showWarning();
-
-                /*if (deviateCount >= 3) {
-                    AlertDialog.Builder builder = new AlertDialog.Builder(WNaviGuideActivity.this);
-                    builder.setTitle("短信警告");
-                    builder.setMessage("您已偏离导航3次");
-                    builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            deviateCount = 0;
-                            dialog.dismiss();
-                        }
-                    });
-                    builder.create().show();
-                }*/
+                if (deviateCount >= 3) {
+                    showWarning();
+                    deviateCount = 0;
+                }
             }
 
             @Override
@@ -194,7 +188,7 @@ public class WNaviGuideActivity extends Activity {
     }
 
     private void showWarning() {
-        final Button button = new Button(WNaviGuideActivity.this);
+/*        final Button button = new Button(WNaviGuideActivity.this);
         button.setText("您已偏离导航3次。(模拟短信)");
 
         button.setOnClickListener(new View.OnClickListener() {
@@ -203,8 +197,17 @@ public class WNaviGuideActivity extends Activity {
                 button.setVisibility(View.INVISIBLE);
             }
         });
-        ((FrameLayout) view).addView(button);
+        ((FrameLayout) view).addView(button);*/
+        View view = LayoutInflater.from(WNaviGuideActivity.this).inflate(R.layout.warning, null);
+        AlertDialog.Builder builder = new AlertDialog.Builder(WNaviGuideActivity.this);
+        TextView warningView = view.findViewById(R.id.warningView);
+        warningView.setText("您已经偏离航线累计3次，请注意。");
+        builder.setIcon(R.drawable.icon_st);
+        builder.setTitle("偏航警告(短信模拟)");
+        builder.setView(view);
+        builder.show();
     }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
